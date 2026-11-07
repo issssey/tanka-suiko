@@ -139,6 +139,8 @@ export function useRunsByRevision(tankaId: string | undefined, revisionIds: stri
       onSnapshot(
         query(collection(db, "tankas", tankaId, "revisions", rid, "checkRuns"), orderBy("startedAt", "asc")),
         (snap) => setRuns((prev) => ({ ...prev, [rid]: snap.docs.map((d) => fromDoc<CheckRun>(d.id, d.data())) })),
+        // 短歌が削除された直後などは読めなくなる。その稿の結果は空として扱う
+        () => setRuns((prev) => ({ ...prev, [rid]: [] })),
       ),
     );
     return () => unsubs.forEach((u) => u());

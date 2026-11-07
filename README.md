@@ -65,7 +65,7 @@ VITE_USE_EMULATORS=true VITE_FIREBASE_PROJECT_ID=demo-tanka-suiko npm run dev
 | `FIREBASE_PROJECT_ID` | — | IDトークンの検証に使う |
 | `TASKS_MODE` | `inline` | 本番は `cloudtasks` |
 | `CLOUD_TASKS_QUEUE` | — | `projects/<p>/locations/<l>/queues/<q>` |
-| `WORKER_URL` | — | `https://<worker>/internal/async-check` |
+| `WORKER_URL` | — | ワーカーのサービスのURL（`https://<worker>`）。パスはタスクの種類で決める |
 | `TASKS_SERVICE_ACCOUNT` | — | Cloud Tasks が OIDC トークンに使うサービスアカウント |
 | `WORKER_AUDIENCE` | `WORKER_URL` | OIDC トークンの audience |
 | `ASYNC_DELAY_SECONDS` | `5` | 連続保存のとき最後の版だけをLLMにかけるための遅延 |
@@ -77,6 +77,21 @@ VITE_USE_EMULATORS=true VITE_FIREBASE_PROJECT_ID=demo-tanka-suiko npm run dev
 | `LITERARY_UNIDIC_DIR` | — | 文語用 UniDic のディレクトリ（未指定なら文語も SudachiPy で解析） |
 
 `ANTHROPIC_API_KEY` は Anthropic API を使う場合に Secret Manager などから渡す。
+
+## ワーカーのエンドポイント
+
+| パス | 呼び出し元 | 内容 |
+|---|---|---|
+| `POST /internal/async-check` | Cloud Tasks | 非同期チェック |
+| `POST /internal/purge-tanka` | Cloud Tasks | 短歌の削除の再試行 |
+| `POST /internal/cleanup-deleted` | Cloud Scheduler（例：1時間ごと） | `deletedAt` が立ったまま残った短歌を消し直す |
+
+いずれも `TASKS_SERVICE_ACCOUNT` の OIDC トークンで認証する。
+
+## 画面
+
+幅 1024px 以上ではPC版のレイアウト（左に短歌のリスト、右に読み・指摘）、それ未満ではスマホ版を出す。
+PC版は書く画面で読みと句分けを同時に表示するため、スマホ版の「読みと句分けの確認」画面はない。
 
 ## パターンを変えたとき
 
@@ -93,3 +108,6 @@ cd backend && .venv/bin/python scripts/export_patterns.py ../frontend/src/genera
   ばらつき対策は、前回の指摘を渡して「該当箇所が変わっていなければ同じ判定を維持する」指示で行う。
 - **非同期の比較相手**：親の版の非同期チェックが飛ばされた（`skipped`）場合は、さらに前の版の結果と比べる。
 - checkRuns の `status` に `limited`（1日の上限超過）と、`trigger`（`save` / `recheck`）を加えた。
+- feedback に、どの稿のチェック結果で設定したか（`revisionNo`）を加えた（画面の「第N稿で設定」の表示用）。
+- 「意図的」「誤検出」にした指摘は、設定した稿のチェック結果でもすぐ折りたたむ（設計書は「次の版から」）。
+- A1 の重大度は設計書どおり、字足らずを「高」、字余りを「中」とする（画面デザインは字余りも「高」）。

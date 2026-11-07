@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { deleteAccount, downloadExport } from "../lib/api";
+import { useAccountActions } from "../lib/account";
 import { logout, useAuth } from "../lib/auth";
 import { useSettings, type Settings } from "../lib/settings";
 import { ConfirmDialog, TopBar } from "../components/ui";
@@ -9,35 +9,9 @@ export default function SettingsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [settings, update] = useSettings();
-  const [busy, setBusy] = useState<"export" | "delete" | null>(null);
   const [confirm, setConfirm] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function exportAll() {
-    setBusy("export");
-    setError(null);
-    try {
-      await downloadExport();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "書き出せませんでした");
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function removeAccount() {
-    setBusy("delete");
-    setError(null);
-    try {
-      await deleteAccount();
-      await logout().catch(() => undefined);
-      navigate("/login", { replace: true });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "削除できませんでした");
-      setBusy(null);
-      setConfirm(false);
-    }
-  }
+  const { busy, error, exportAll, removeAccount: remove } = useAccountActions();
+  const removeAccount = () => remove().catch(() => setConfirm(false));
 
   const provider = user?.providerData[0]?.providerId === "google.com" ? "Googleでログイン中" : "メールでログイン中";
 
