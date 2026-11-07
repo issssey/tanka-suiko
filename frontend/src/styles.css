@@ -339,3 +339,13 @@ input[type="checkbox"] { accent-color: var(--accent); width: 20px; height: 20px;
 
 .pc-center { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 24px; }
 .pc-center > * { width: 100%; max-width: 560px; }
+
+/* 左のリスト・中央・右の列がある画面は、画面の高さに固定して列ごとにスクロールする（画面全体は動かさない） */
+.pc.pc-fixed { height: 100dvh; min-height: 0; overflow: hidden; }
+.pc-fixed .pc-header { position: static; flex: none; }
+.pc-fixed .pc-body { min-height: 0; overflow: hidden; }
+.pc-fixed .pc-sidebar,
+.pc-fixed .pc-main,
+.pc-fixed .pc-aside { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.pc-fixed .pc-main > *,
+.pc-fixed .pc-aside > * { flex-shrink: 0; }

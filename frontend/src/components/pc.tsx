@@ -35,7 +35,7 @@ export function PcHeader() {
 /** 左に短歌のリストを置いたPC版の画面。aside は右の列（読み・指摘など）。 */
 export function PcShell({ activeTankaId, children, aside, asideLabel }: { activeTankaId?: string; children: ReactNode; aside?: ReactNode; asideLabel?: string }) {
   return (
-    <div className="pc">
+    <div className="pc pc-fixed">
       <PcHeader />
       <div className="pc-body">
         <PcSidebar activeTankaId={activeTankaId} />
