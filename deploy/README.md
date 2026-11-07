@@ -70,7 +70,7 @@ Secret Manager、GitHub 連携をまとめて作る。何度実行してもよ�
 | `FIREBASE_APP_ID` | Firebase のウェブアプリの `appId` |
 | `FIREBASE_AUTH_DOMAIN` | 任意。既定は `<プロジェクトID>.firebaseapp.com` |
 | `LLM_PROVIDER` | `anthropic` か `vertex`（`none` にするとLLMの判定をしない） |
-| `LLM_MODEL` | 任意。既定は `claude-haiku-5-5` |
+| `LLM_MODEL` | 任意。既定は `claude-sonnet-5-5` |
 | `LLM_EFFORT` | 任意。`low` / `medium` / `high` |
 | `ASYNC_DAILY_LIMIT` | 任意。作者1人あたりの1日の意味のチェックの回数。既定は 100 |
 | `EXTRA_CORS_ORIGINS` | 任意。独自ドメインを使う場合、そのURL（例：`https://suiko.example.com`） |

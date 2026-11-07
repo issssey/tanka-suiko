@@ -49,7 +49,7 @@ write_env() {
     printf 'WORKER_AUDIENCE: "%s"\n' "$WORKER_URL"
     printf 'CORS_ORIGINS: "%s"\n' "$ORIGINS"
     printf 'LLM_PROVIDER: "%s"\n' "$LLM_PROVIDER"
-    printf 'LLM_MODEL: "%s"\n' "${LLM_MODEL:-claude-haiku-5-5}"
+    printf 'LLM_MODEL: "%s"\n' "${LLM_MODEL:-claude-sonnet-5-5}"
     printf 'VERTEX_PROJECT: "%s"\n' "$PROJECT"
     printf 'ASYNC_DAILY_LIMIT: "%s"\n' "${ASYNC_DAILY_LIMIT:-100}"
     if [ -n "${LLM_EFFORT:-}" ]; then printf 'LLM_EFFORT: "%s"\n' "$LLM_EFFORT"; fi

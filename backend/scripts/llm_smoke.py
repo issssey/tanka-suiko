@@ -2,7 +2,7 @@
 
 メモリ上のDBで Service をそのまま動かし、版ごとに即時・非同期の指摘と解消を表示する。
 
-  TANKA_ANTHROPIC_API_KEY=... .venv/bin/python scripts/llm_smoke.py [--model claude-haiku-5-5]
+  TANKA_ANTHROPIC_API_KEY=... .venv/bin/python scripts/llm_smoke.py [--model claude-sonnet-5-5]
 
 キーは TANKA_ANTHROPIC_API_KEY（なければ ANTHROPIC_API_KEY）から読む。
 Claude Code のクラウドセッションでは ANTHROPIC_BASE_URL などがセッション用に設定されているので、
@@ -28,7 +28,7 @@ DRAFTS = [
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default=os.environ.get("LLM_MODEL", "claude-haiku-5-5"))
+    parser.add_argument("--model", default=os.environ.get("LLM_MODEL", "claude-sonnet-5-5"))
     parser.add_argument("--effort", default=os.environ.get("LLM_EFFORT"))
     args = parser.parse_args()
 
