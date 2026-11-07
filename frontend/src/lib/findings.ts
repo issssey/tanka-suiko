@@ -10,6 +10,9 @@ export interface PatternInfo {
   severity: Severity;
   severityNote: string | null;
   definition: string;
+  criteria: string;
+  positive: string[];
+  negative: string[];
   requiresParent: boolean;
 }
 

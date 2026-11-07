@@ -3,9 +3,9 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAccountActions } from "../../lib/account";
 import { logout, useAuth } from "../../lib/auth";
-import { CATEGORIES, PATTERNS, SEVERITY_LABEL } from "../../lib/findings";
 import { useSettings } from "../../lib/settings";
 import { PcHeader } from "../../components/pc";
+import { PatternList } from "../../components/PatternList";
 import { ConfirmDialog } from "../../components/ui";
 
 const SECTIONS = [
@@ -97,23 +97,8 @@ export default function PcSettings() {
 
           <section id="patterns">
             <h2>指摘されるパターン一覧</h2>
-            <p className="muted" style={{ margin: "0 0 12px", fontSize: 13 }}>「即時」は保存と同時に、「後から」は保存後30秒ほどで結果が出ます。A1は字足らずが「高」、字余りが「中」です。</p>
-            <table className="pc-pattern-table">
-              <thead>
-                <tr><th scope="col">コード</th><th scope="col">パターン</th><th scope="col">分類</th><th scope="col">結果が出る時</th><th scope="col">重大度</th></tr>
-              </thead>
-              <tbody>
-                {PATTERNS.map((p) => (
-                  <tr key={p.code}>
-                    <td className="muted" style={{ fontVariantNumeric: "tabular-nums" }}>{p.code}</td>
-                    <td title={p.definition}>{p.name}</td>
-                    <td className="muted">{CATEGORIES[p.category]}</td>
-                    <td><span className="trans continued" style={p.phase === "sync" ? { borderColor: "var(--accent)", color: "var(--accent)" } : undefined}>{p.phase === "sync" ? "即時" : "後から"}</span></td>
-                    <td><span className={`sev ${p.severity}`}>{SEVERITY_LABEL[p.severity]}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <p className="muted" style={{ margin: "0 0 12px", fontSize: 13 }}>「即時」は保存と同時に、「後から」は保存後30秒ほどで結果が出ます。パターンを選ぶと、説明と例が開きます。</p>
+            <PatternList wide />
           </section>
 
           <section id="data">

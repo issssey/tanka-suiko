@@ -28,6 +28,9 @@ def main(out: str) -> None:
                 "severity": p.severity if isinstance(p.severity, str) else p.severity.get("excess"),
                 "severityNote": "字足らずは高、字余りは中" if isinstance(p.severity, dict) else None,
                 "definition": p.definition,
+                "criteria": p.criteria,
+                "positive": list(p.positive),
+                "negative": list(p.negative),
                 "requiresParent": p.requires_parent,
             }
             for p in ps.patterns.values()

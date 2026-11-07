@@ -258,7 +258,7 @@ function FindingDetail({ base, finding, timeline, actions }: { base: string; fin
         <section style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <h3 style={{ margin: 0 }}>このパターンについて</h3>
           <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8, color: "var(--text-2)" }}>{info.definition}</p>
-          <Link to="/settings#patterns" style={{ fontSize: 14, fontWeight: 500 }}>ほかのパターンも見る</Link>
+          <Link to={`/patterns#${finding.code}`} style={{ fontSize: 14, fontWeight: 500 }}>このパターンの説明と例を見る</Link>
         </section>
       )}
       {timeline.length > 0 && (

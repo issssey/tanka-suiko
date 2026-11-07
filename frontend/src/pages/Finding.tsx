@@ -75,7 +75,7 @@ export default function FindingPage() {
         <section style={{ display: "flex", flexDirection: "column", gap: 8, padding: "22px 20px 0" }}>
           <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>このパターンについて</h2>
           <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8, color: "var(--text-2)" }}>{info.definition}</p>
-          <Link to="/patterns" style={{ fontSize: 14, fontWeight: 500 }}>ほかのパターンも見る</Link>
+          <Link to={`/patterns#${finding.code}`} style={{ fontSize: 14, fontWeight: 500 }}>このパターンの説明と例を見る</Link>
         </section>
       )}
 
