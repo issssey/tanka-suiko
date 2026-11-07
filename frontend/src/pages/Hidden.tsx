@@ -4,7 +4,7 @@ import { deleteFeedback } from "../lib/api";
 import { useFeedback, useRevisions, useRunsByRevision, useTanka } from "../lib/data";
 import { findingTitle, latestDoneRun } from "../lib/findings";
 import type { Feedback, Finding } from "../lib/types";
-import { formatDate, Loading, SeverityBadge, TopBar } from "../components/ui";
+import { formatDate, Loading, SeverityBadge, snippet, TopBar } from "../components/ui";
 
 export default function HiddenPage() {
   const { tankaId = "" } = useParams();
@@ -46,7 +46,7 @@ export default function HiddenPage() {
         back={tanka?.currentRevisionId ? `/t/${tankaId}/r/${tanka.currentRevisionId}` : "/"}
         backLabel="チェック結果に戻る"
         title="非表示にした指摘"
-        sub={tanka?.title || "無題"}
+        sub={snippet(tanka?.latestBody)}
       />
       <p className="muted" style={{ margin: 0, padding: "4px 20px 8px", fontSize: 13, lineHeight: 1.7 }}>
         「意図的」「誤検出」にした指摘は、この短歌のチェック結果で折りたたんで表示します。取り消すと、また表示します。
@@ -70,7 +70,10 @@ export default function HiddenPage() {
                     </div>
                     {f && <p className="msg">{f.message}</p>}
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                      <span className="small muted">{formatDate(fb.createdAt)} に設定</span>
+                      <span className="small muted">
+                        {fb.revisionNo ? `第${fb.revisionNo}稿で設定 · ` : ""}
+                        {formatDate(fb.createdAt)}
+                      </span>
                       <button type="button" className="pill" disabled={busy === fb.fingerprint} onClick={() => undo(fb.fingerprint)}>取り消す</button>
                     </div>
                   </article>

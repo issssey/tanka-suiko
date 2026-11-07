@@ -1,12 +1,44 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { deleteAccount, downloadExport } from "../lib/api";
 import { logout, useAuth } from "../lib/auth";
 import { useSettings, type Settings } from "../lib/settings";
-import { TopBar } from "../components/ui";
+import { ConfirmDialog, TopBar } from "../components/ui";
 
 export default function SettingsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [settings, update] = useSettings();
+  const [busy, setBusy] = useState<"export" | "delete" | null>(null);
+  const [confirm, setConfirm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function exportAll() {
+    setBusy("export");
+    setError(null);
+    try {
+      await downloadExport();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "書き出せませんでした");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function removeAccount() {
+    setBusy("delete");
+    setError(null);
+    try {
+      await deleteAccount();
+      await logout().catch(() => undefined);
+      navigate("/login", { replace: true });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "削除できませんでした");
+      setBusy(null);
+      setConfirm(false);
+    }
+  }
+
   const provider = user?.providerData[0]?.providerId === "google.com" ? "Googleでログイン中" : "メールでログイン中";
 
   function Choice<K extends "defaultStyle" | "defaultOrthography">({ k, options }: { k: K; options: { v: Settings[K]; l: string }[] }) {
@@ -67,11 +99,44 @@ export default function SettingsPage() {
       </div>
 
       <h2 className="group-title">ヘルプ</h2>
-      <div className="card" style={{ margin: "0 16px 32px", padding: "4px 16px" }}>
+      <div className="card" style={{ margin: "0 16px", padding: "4px 16px" }}>
         <Link to="/patterns" className="toggle-row" style={{ textDecoration: "none", color: "var(--text)", fontSize: 14 }}>
           指摘されるパターン一覧 <span aria-hidden="true">›</span>
         </Link>
       </div>
+
+      <h2 className="group-title">データ</h2>
+      <div className="card" style={{ margin: "0 16px 32px", padding: "4px 16px" }}>
+        <div className="toggle-row">
+          <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span style={{ fontSize: 14 }}>すべての短歌を書き出す</span>
+            <span className="small muted">すべての稿をJSONファイルで保存します</span>
+          </span>
+          <button type="button" className="pill" disabled={busy !== null} onClick={exportAll}>書き出す</button>
+        </div>
+        <div className="toggle-row">
+          <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span style={{ fontSize: 14, color: "var(--high)" }}>アカウントを削除</span>
+            <span className="small muted">すべての短歌とログイン情報を削除します</span>
+          </span>
+          <button type="button" className="pill" style={{ color: "var(--high)", borderColor: "var(--high)" }} disabled={busy !== null} onClick={() => setConfirm(true)}>削除</button>
+        </div>
+      </div>
+      {error && <p className="error" style={{ marginBottom: 32 }}>{error}</p>}
+      {confirm && (
+        <ConfirmDialog
+          title="アカウントを削除しますか？"
+          confirmLabel="アカウントとすべての短歌を削除する"
+          busy={busy === "delete"}
+          onConfirm={removeAccount}
+          onCancel={() => setConfirm(false)}
+        >
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8 }}>
+            すべての短歌と稿、チェック結果、「意図的」「誤検出」にした指摘、ログイン情報が削除されます。
+            <strong>削除すると元に戻せません。</strong>必要なら、先に「すべての短歌を書き出す」で保存してください。
+          </p>
+        </ConfirmDialog>
+      )}
     </>
   );
 }

@@ -39,7 +39,7 @@ describe("summarize", () => {
   });
 
   it("作者の判断がある指摘は折りたたむ", () => {
-    const fb: Feedback[] = [{ fingerprint: "A1:5", status: "intentional", comment: null, createdAt: new Date() }];
+    const fb: Feedback[] = [{ fingerprint: "A1:5", status: "intentional", comment: null, revisionNo: 3, createdAt: new Date() }];
     const s = summarize(runs, fb);
     expect(s.hidden.map((h) => h.finding.fingerprint)).toEqual(["A1:5"]);
     expect(s.visible.some((x) => x.fingerprint === "A1:5")).toBe(false);

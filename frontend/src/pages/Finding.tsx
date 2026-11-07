@@ -38,7 +38,7 @@ export default function FindingPage() {
     setBusy(true);
     setError(null);
     try {
-      await putFeedback(tankaId, fingerprint, status);
+      await putFeedback(tankaId, fingerprint, status, revisionId);
       navigate(`/t/${tankaId}/r/${revisionId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "保存できませんでした");

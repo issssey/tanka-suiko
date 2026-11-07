@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
-import { useCheckRuns, useFeedback, useRevision, useTankas } from "../lib/data";
+import { useCheckRuns, useFeedback, useTankas } from "../lib/data";
 import { severityCounts, summarize } from "../lib/findings";
 import { loadSettings } from "../lib/settings";
 import type { Tanka } from "../lib/types";
@@ -38,7 +38,6 @@ export default function ListPage() {
 }
 
 function TankaCard({ tanka }: { tanka: Tanka }) {
-  const { data: rev } = useRevision(tanka.id, tanka.currentRevisionId);
   const { data: runs } = useCheckRuns(tanka.id, tanka.currentRevisionId);
   const { data: feedback } = useFeedback(tanka.id);
   const s = summarize(runs, feedback, loadSettings());
@@ -46,13 +45,10 @@ function TankaCard({ tanka }: { tanka: Tanka }) {
   const href = `/t/${tanka.id}/r/${tanka.currentRevisionId}`;
   return (
     <Link to={href} className="card tanka-card">
-      <div className="head">
-        <span style={{ fontSize: 15, fontWeight: 700 }}>{tanka.title || "無題"}</span>
-        <span className="small muted">
-          {rev ? `第${rev.revisionNo}稿 · ${formatDate(rev.createdAt)}` : ""}
-        </span>
-      </div>
-      <p className="poem-line">{rev?.bodyNormalized ?? "　"}</p>
+      <span className="small muted">
+        第{tanka.latestRevisionNo}稿 · {formatDate(tanka.updatedAt)}
+      </span>
+      <p className="poem-line">{tanka.latestBody}</p>
       <div className="chips">
         {c.high > 0 && <span className="chip high">高 {c.high}</span>}
         {c.medium > 0 && <span className="chip medium">中 {c.medium}</span>}

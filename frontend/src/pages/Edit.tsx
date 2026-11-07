@@ -36,7 +36,12 @@ export default function EditPage() {
 
   return (
     <>
-      <TopBar back={parent ? `/t/${tankaId}/r/${parent.id}` : "/"} backLabel="チェック結果に戻る" title={tanka.title || "無題"} sub={`第${nextNo}稿を書く`} />
+      <TopBar
+        back={parent ? `/t/${tankaId}/r/${parent.id}` : "/"}
+        backLabel="チェック結果に戻る"
+        title={`第${nextNo}稿を書く`}
+        sub={parent ? `第${parent.revisionNo}稿から推敲` : undefined}
+      />
       <div style={{ display: "flex", flexDirection: "column", gap: 20, paddingTop: 8 }}>
         {parent && (
           <section className="card" style={{ margin: "0 16px", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 6 }}>

@@ -40,11 +40,14 @@ export interface Finding {
   transition: Transition;
 }
 
+/** 短歌1首。題は持たず、一覧では最新の稿の本文（latestBody）で見分ける。 */
 export interface Tanka {
   id: string;
   authorId: string;
-  title: string | null;
   currentRevisionId: string | null;
+  latestBody: string | null;
+  latestRevisionNo: number | null;
+  deletedAt: Date | null;
   nextRevisionNo: number;
   readingMemory: Record<string, string>;
   createdAt: Date;
@@ -83,6 +86,7 @@ export interface Feedback {
   fingerprint: string;
   status: "intentional" | "false_positive";
   comment: string | null;
+  revisionNo: number | null;
   createdAt: Date;
 }
 

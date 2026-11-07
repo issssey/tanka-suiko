@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { useRevisions, useRunsByRevision } from "../lib/data";
+import { useRevisions, useRunsByRevision, useTanka } from "../lib/data";
 import { findingTitle, latestDoneRun } from "../lib/findings";
 import type { CheckRun, Finding } from "../lib/types";
-import { Loading, TopBar } from "../components/ui";
+import { Loading, snippet, TopBar } from "../components/ui";
 
 const KANSUJI = ["", "一", "二", "三", "四", "五"];
 
@@ -16,6 +16,7 @@ export default function ComparePage() {
   const { tankaId = "" } = useParams();
   const [params, setParams] = useSearchParams();
   const { data: revisions, loading } = useRevisions(tankaId);
+  const { data: tanka } = useTanka(tankaId);
   const runsByRev = useRunsByRevision(tankaId, revisions.map((r) => r.id));
   const [a, setA] = useState<string | null>(params.get("a"));
   const [b, setB] = useState<string | null>(params.get("b"));
@@ -50,7 +51,7 @@ export default function ComparePage() {
 
   return (
     <>
-      <TopBar back={`/t/${tankaId}/history`} backLabel="推敲履歴に戻る" title="稿の比較" />
+      <TopBar back={`/t/${tankaId}/history`} backLabel="推敲履歴に戻る" title="稿の比較" sub={snippet(tanka?.latestBody)} />
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 20px 16px" }}>
         <RevisionSelect label="比べる元の稿" value={a} onChange={(id) => pick("a", id)} options={revisions.map((r) => ({ id: r.id, no: r.revisionNo }))} />
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5F5B53" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>

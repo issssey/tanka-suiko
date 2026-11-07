@@ -32,8 +32,30 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
 }
 
-export function createTanka(title: string | null) {
-  return request<{ tankaId: string }>("POST", "/tankas", { title });
+export function createTanka() {
+  return request<{ tankaId: string }>("POST", "/tankas");
+}
+
+/** 短歌を削除する。すべての稿・チェック結果・作者の判断をまとめて消す（元に戻せない）。 */
+export function deleteTanka(tankaId: string) {
+  return request<void>("DELETE", `/tankas/${tankaId}`);
+}
+
+/** 自分のすべての短歌と稿を JSON で書き出し、ファイルとして保存させる。 */
+export async function downloadExport() {
+  const data = await request<unknown>("GET", "/me/export");
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `suikocho-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/** アカウント削除。すべての短歌を削除し、ログイン情報も消す。 */
+export function deleteAccount() {
+  return request<void>("DELETE", "/me");
 }
 
 export function preprocess(
@@ -62,8 +84,8 @@ export function recheck(tankaId: string, revisionId: string) {
   return request<SaveResponse>("POST", `/tankas/${tankaId}/revisions/${revisionId}/recheck`);
 }
 
-export function putFeedback(tankaId: string, fingerprint: string, status: Feedback["status"]) {
-  return request<Feedback>("PUT", `/tankas/${tankaId}/feedback/${encodeURIComponent(fingerprint)}`, { status });
+export function putFeedback(tankaId: string, fingerprint: string, status: Feedback["status"], revisionId: string) {
+  return request<Feedback>("PUT", `/tankas/${tankaId}/feedback/${encodeURIComponent(fingerprint)}`, { status, revisionId });
 }
 
 export function deleteFeedback(tankaId: string, fingerprint: string) {

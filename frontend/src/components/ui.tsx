@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { findingTitle, highlightParts, SEVERITY_LABEL } from "../lib/findings";
 import type { Finding, Severity, Transition } from "../lib/types";
@@ -45,7 +45,25 @@ export function PlusIcon() {
   );
 }
 
-export function TopBar({ back, backLabel, title, sub, right }: { back: string; backLabel: string; title: ReactNode; sub?: ReactNode; right?: ReactNode }) {
+export function HomeIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 11l8-7 8 7" />
+      <path d="M6 10v10h12V10" />
+    </svg>
+  );
+}
+
+export function TrashIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+    </svg>
+  );
+}
+
+/** 下層画面のヘッダー。右端に一覧（トップ）へ戻る家のアイコンを置く。 */
+export function TopBar({ back, backLabel, title, sub, right, home = true }: { back: string; backLabel: string; title: ReactNode; sub?: ReactNode; right?: ReactNode; home?: boolean }) {
   return (
     <header className="topbar">
       <Link to={back} className="icon-btn" aria-label={backLabel}>
@@ -56,7 +74,57 @@ export function TopBar({ back, backLabel, title, sub, right }: { back: string; b
         {sub && <span className="sub">{sub}</span>}
       </div>
       {right}
+      {home && (
+        <Link to="/" className="icon-btn" aria-label="短歌一覧（トップ）に戻る" style={{ color: "var(--muted)" }}>
+          <HomeIcon />
+        </Link>
+      )}
     </header>
+  );
+}
+
+/** 題の代わりに、本文の冒頭で短歌を見分ける。 */
+export function snippet(body: string | null | undefined, length = 10): string {
+  if (!body) return "";
+  return body.length > length ? `${body.slice(0, length)}…` : body;
+}
+
+/** 削除の確認。スマホでは下から出るシート、広い画面では中央のダイアログになる。 */
+export function ConfirmDialog({
+  title,
+  children,
+  confirmLabel,
+  busy,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  children: ReactNode;
+  confirmLabel: string;
+  busy?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    cancelRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onCancel();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+  return (
+    <div className="dialog-layer">
+      <button type="button" className="dialog-backdrop" aria-label="閉じる" onClick={onCancel} />
+      <section role="dialog" aria-modal="true" aria-labelledby="dialog-title" className="dialog">
+        <div aria-hidden="true" className="dialog-handle" />
+        <h2 id="dialog-title" style={{ margin: "4px 0 0", fontSize: 18, fontWeight: 700 }}>{title}</h2>
+        {children}
+        <div className="dialog-actions">
+          <button type="button" className="btn-danger" disabled={busy} onClick={onConfirm}>{confirmLabel}</button>
+          <button type="button" ref={cancelRef} className="btn-secondary" disabled={busy} onClick={onCancel}>キャンセル</button>
+        </div>
+      </section>
+    </div>
   );
 }
 

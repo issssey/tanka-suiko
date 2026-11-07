@@ -54,7 +54,13 @@ export function useTankas(uid: string | undefined): Loadable<Tanka[]> {
     uid
       ? (set, fail) =>
           onSnapshot(
-            query(collection(db, "tankas"), where("authorId", "==", uid), orderBy("updatedAt", "desc")),
+            // deletedAt == null を付けないとセキュリティルールで拒否される（削除中の短歌は読めない）
+            query(
+              collection(db, "tankas"),
+              where("authorId", "==", uid),
+              where("deletedAt", "==", null),
+              orderBy("updatedAt", "desc"),
+            ),
             (snap) => set(snap.docs.map((d) => fromDoc<Tanka>(d.id, d.data()))),
             fail,
           )

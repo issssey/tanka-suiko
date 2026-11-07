@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { putFeedback, recheck } from "../lib/api";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { deleteTanka, putFeedback, recheck } from "../lib/api";
 import { useCheckRuns, useFeedback, useRevision, useTanka } from "../lib/data";
 import { findingTitle, resolvedDetails, summarize } from "../lib/findings";
 import { loadSettings } from "../lib/settings";
-import { CheckIcon, ClockIcon, FindingCard, formatDate, HighlightedPoem, Loading, TopBar } from "../components/ui";
+import { CheckIcon, ClockIcon, ConfirmDialog, FindingCard, formatDate, HighlightedPoem, Loading, TopBar, TrashIcon } from "../components/ui";
 import type { CheckRun } from "../lib/types";
 
 export default function ResultPage() {
@@ -16,6 +16,8 @@ export default function ResultPage() {
   const { data: feedback } = useFeedback(tankaId);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const navigate = useNavigate();
 
   if (loading) return <Loading />;
   if (!rev) return <div className="center-msg">この稿は見つかりません。<Link to="/">一覧へ</Link></div>;
@@ -30,7 +32,7 @@ export default function ResultPage() {
     setBusy(fingerprint);
     setError(null);
     try {
-      await putFeedback(tankaId, fingerprint, status);
+      await putFeedback(tankaId, fingerprint, status, rev!.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "保存できませんでした");
     } finally {
@@ -49,6 +51,20 @@ export default function ResultPage() {
     }
   }
 
+  async function removeTanka() {
+    setBusy("delete");
+    try {
+      await deleteTanka(tankaId);
+      navigate("/", { replace: true });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "削除できませんでした");
+      setBusy(null);
+      setConfirmDelete(false);
+    }
+  }
+
+  const revisionCount = tanka?.latestRevisionNo ?? rev.revisionNo;
+
   const card = (f: (typeof s.visible)[number]) => (
     <FindingCard
       key={f.fingerprint}
@@ -64,15 +80,35 @@ export default function ResultPage() {
       <TopBar
         back="/"
         backLabel="一覧に戻る"
-        title={tanka?.title || "無題"}
-        sub={`第${rev.revisionNo}稿 · ${formatDate(rev.createdAt)}`}
+        title={`第${rev.revisionNo}稿`}
+        sub={`${formatDate(rev.createdAt)} 保存`}
         right={
-          <Link to={`/t/${tankaId}/history`} className="text-link-btn">
-            <ClockIcon />
-            履歴
-          </Link>
+          <>
+            <Link to={`/t/${tankaId}/history`} className="text-link-btn">
+              <ClockIcon />
+              履歴
+            </Link>
+            <button type="button" className="icon-btn" aria-label="この短歌を削除" style={{ color: "var(--muted)" }} onClick={() => setConfirmDelete(true)}>
+              <TrashIcon />
+            </button>
+          </>
         }
       />
+      {confirmDelete && (
+        <ConfirmDialog
+          title="この短歌を削除しますか？"
+          confirmLabel={revisionCount > 1 ? `${revisionCount}稿すべてを削除する` : "削除する"}
+          busy={busy === "delete"}
+          onConfirm={removeTanka}
+          onCancel={() => setConfirmDelete(false)}
+        >
+          <p className="quote">{tanka?.latestBody ?? rev.bodyNormalized}</p>
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8 }}>
+            {revisionCount > 1 ? `第1稿から第${revisionCount}稿までのすべての稿と、` : "この稿と、"}
+            チェック結果、「意図的」「誤検出」にした指摘も削除されます。<strong>削除すると元に戻せません。</strong>
+          </p>
+        </ConfirmDialog>
+      )}
 
       <section className="card poem-box">
         <p>
@@ -88,7 +124,20 @@ export default function ResultPage() {
         </div>
       )}
 
-      <AsyncStatus run={s.async} onRecheck={runAgain} busy={busy === "recheck"} />
+      {s.asyncPending ? (
+        <div className="progress-banner" role="status">
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span className="spinner" aria-hidden="true" />
+            <span style={{ fontSize: 14, fontWeight: 500, color: "var(--accent-hover)" }}>意味のチェックを実行中</span>
+          </div>
+          <div className="progress-track" aria-hidden="true" />
+          <span style={{ fontSize: 12, lineHeight: 1.6, color: "#3D4F6E" }}>
+            通常30秒ほどで終わります。画面を離れても結果は保存され、終わったらここに追加されます。
+          </span>
+        </div>
+      ) : (
+        <AsyncStatus run={s.async} onRecheck={runAgain} busy={busy === "recheck"} />
+      )}
       {error && <p className="error">{error}</p>}
 
       {s.asyncPending ? (
@@ -97,9 +146,9 @@ export default function ResultPage() {
           <p className="small muted" style={{ margin: "-6px 20px 10px" }}>保存と同時に確認できるもの</p>
           <div className="stack">{syncFindings.map(card)}</div>
           <h2 className="section-title">意味のチェック</h2>
-          <div className="card" style={{ margin: "0 16px", padding: 16, display: "flex", alignItems: "center", gap: 10 }}>
-            <span className="spinner" aria-hidden="true" />
-            <span className="small muted">判定中です。終わったらここに追加されます。</span>
+          <div className="stack" aria-hidden="true">
+            <div className="skeleton"><div className="bar head" style={{ width: "40%" }} /><div className="bar" style={{ width: "85%" }} /><div className="bar" style={{ width: "60%" }} /></div>
+            <div className="skeleton"><div className="bar head" style={{ width: "30%" }} /><div className="bar" style={{ width: "75%" }} /></div>
           </div>
         </>
       ) : (

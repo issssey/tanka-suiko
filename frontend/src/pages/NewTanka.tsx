@@ -7,7 +7,6 @@ import { TopBar } from "../components/ui";
 
 export default function NewTankaPage() {
   const navigate = useNavigate();
-  const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -16,7 +15,7 @@ export default function NewTankaPage() {
     setBusy(true);
     setError(null);
     try {
-      const { tankaId } = await createTanka(title.trim() || null);
+      const { tankaId } = await createTanka();
       const s = loadSettings();
       saveDraft({
         tankaId,
@@ -37,10 +36,6 @@ export default function NewTankaPage() {
     <>
       <TopBar back="/" backLabel="一覧に戻る" title="新しい短歌" sub="初稿を書く" />
       <div style={{ display: "flex", flexDirection: "column", gap: 20, paddingTop: 8 }}>
-        <div className="field">
-          <label htmlFor="title">仮題 <span style={{ fontWeight: 400 }}>（任意・一覧での見分け用）</span></label>
-          <input id="title" className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="例：駅のホーム" />
-        </div>
         <div className="field">
           <label htmlFor="body">本文</label>
           <textarea id="body" className="textarea serif" value={body} onChange={(e) => setBody(e.target.value)} placeholder="一首を書いてください" />

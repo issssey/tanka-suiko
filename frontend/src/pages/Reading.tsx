@@ -87,7 +87,7 @@ export default function ReadingPage() {
     saveDraft({ ...draft!, style, orthography: o });
   }
 
-  const sub = `${tanka?.title || "無題"} · 第${tanka?.nextRevisionNo ?? ""}稿`;
+  const sub = tanka ? `第${tanka.nextRevisionNo}稿` : undefined;
 
   return (
     <>

@@ -30,7 +30,7 @@ export default function HistoryPage() {
         back={latest ? `/t/${tankaId}/r/${latest.id}` : "/"}
         backLabel="チェック結果に戻る"
         title="推敲履歴"
-        sub={`${tanka?.title || "無題"} · ${revisions.length}稿`}
+        sub={`全${revisions.length}稿`}
       />
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 20px 12px", gap: 12 }}>
         <span className="small muted"><span className="hl-low">下線</span>は前の稿から変わった句</span>
