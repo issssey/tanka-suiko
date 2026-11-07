@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 from .auth import current_user, delete_firebase_user, verify_tasks_caller
 from .checkers.llm import AnthropicJSONClient, LLMChecker, NullLLMClient
-from .config import Settings, get_settings
+from .config import Settings, check_production_safety, get_settings
 from .patterns import load_patterns
 from .preprocess.pipeline import ConfirmedSegment, PreprocessError
 from .repository.base import NotFound
@@ -116,6 +116,8 @@ def build_service(settings: Settings) -> Service:
 
 def create_app(settings: Settings | None = None, service: Service | None = None) -> FastAPI:
     settings = settings or get_settings()
+    if service is None:
+        check_production_safety(settings)
     app = FastAPI(title="短歌アンチパターン検出API", version="0.1.0")
     app.state.service = service or build_service(settings)
     app.state.settings = settings

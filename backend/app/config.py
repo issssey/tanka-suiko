@@ -42,6 +42,28 @@ class Settings:
     timezone: str = "Asia/Tokyo"
 
 
+class UnsafeConfiguration(RuntimeError):
+    pass
+
+
+def check_production_safety(settings: Settings, environ: dict[str, str] | None = None) -> None:
+    """Cloud Run 上（K_SERVICE がある）では、開発用の設定で起動させない。"""
+    env = os.environ if environ is None else environ
+    if not env.get("K_SERVICE"):
+        return
+    problems = []
+    if settings.auth_mode != "firebase":
+        problems.append("AUTH_MODE は firebase にしてください")
+    if settings.repository != "firestore":
+        problems.append("REPOSITORY は firestore にしてください")
+    if settings.app_role in ("api", "all") and settings.tasks_mode != "cloudtasks":
+        problems.append("TASKS_MODE は cloudtasks にしてください")
+    if not settings.firebase_project_id:
+        problems.append("FIREBASE_PROJECT_ID を設定してください")
+    if problems:
+        raise UnsafeConfiguration("本番の設定に問題があります: " + " / ".join(problems))
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings(

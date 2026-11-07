@@ -19,6 +19,11 @@ frontend/   React + Vite。読み取りは Firestore を直接リスナーで読
 firestore.rules     クライアントは自分の短歌の読み取りだけ。書き込みはサービスアカウントのみ
 ```
 
+## 展開（dev / prd）
+
+`main` へのマージで dev に、`release` へのプッシュで prd に、GitHub Actions が展開する。
+初期設定と手順は [deploy/README.md](deploy/README.md) を参照。
+
 ## ローカルで動かす
 
 ### バックエンドだけ（メモリ上のDB・LLMなし）

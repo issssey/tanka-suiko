@@ -74,3 +74,15 @@ def test_roles(service):
     assert api_only.post("/internal/async-check", json={}).status_code == 404
     worker = TestClient(create_app(Settings(app_role="worker"), service=service))
     assert worker.post("/tankas", headers=AUTH).status_code == 404
+
+
+def test_refuses_dev_settings_on_cloud_run():
+    import pytest
+
+    from app.config import Settings, UnsafeConfiguration, check_production_safety
+
+    with pytest.raises(UnsafeConfiguration):
+        check_production_safety(Settings(), {"K_SERVICE": "tanka-api"})
+    ok = Settings(auth_mode="firebase", repository="firestore", tasks_mode="cloudtasks", firebase_project_id="p")
+    check_production_safety(ok, {"K_SERVICE": "tanka-api"})
+    check_production_safety(Settings(), {})  # ローカルでは何もしない

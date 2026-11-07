@@ -1,0 +1,59 @@
+# main へのマージで dev に、release へのプッシュで prd に展開する。
+# GCP へは Workload Identity Federation で入る（鍵は使わない）。
+# 各プロジェクトの連携は、決まったブランチからしか通らない（deploy/setup.sh で設定）。
+name: deploy
+
+on:
+  push:
+    branches: [main, release]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    # main → dev、release → prd。prd の Environment に承認者を設定すると、承認後に展開される
+    environment: ${{ github.ref_name == 'release' && 'prd' || 'dev' }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: ブランチの確認
+        if: github.ref_name != 'main' && github.ref_name != 'release'
+        run: |
+          echo "main か release からだけ展開します（${{ github.ref_name }}）" >&2
+          exit 1
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: 展開
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GCP_PROJECT_NUMBER: ${{ vars.GCP_PROJECT_NUMBER }}
+          GCP_REGION: ${{ vars.GCP_REGION }}
+          FIREBASE_API_KEY: ${{ vars.FIREBASE_API_KEY }}
+          FIREBASE_APP_ID: ${{ vars.FIREBASE_APP_ID }}
+          FIREBASE_AUTH_DOMAIN: ${{ vars.FIREBASE_AUTH_DOMAIN }}
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
+          LLM_MODEL: ${{ vars.LLM_MODEL }}
+          LLM_EFFORT: ${{ vars.LLM_EFFORT }}
+          ASYNC_DAILY_LIMIT: ${{ vars.ASYNC_DAILY_LIMIT }}
+          EXTRA_CORS_ORIGINS: ${{ vars.EXTRA_CORS_ORIGINS }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: deploy/deploy.sh
