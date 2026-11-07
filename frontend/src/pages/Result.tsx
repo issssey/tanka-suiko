@@ -155,7 +155,7 @@ export default function ResultPage() {
         <>
           <h2 className="section-title">指摘 {s.visible.length}件</h2>
           <div className="stack">
-            {s.visible.length === 0 && <p className="muted" style={{ margin: 0, fontSize: 14, padding: "0 4px" }}>表示する指摘はありません。</p>}
+            {s.visible.length === 0 && <p className="muted" style={{ margin: 0, fontSize: 14, lineHeight: 1.7, padding: "0 4px" }}>見つかったつまずきはありません。歌の良し悪しを判定するものではなく、よくあるつまずきが見当たらなかった、という意味です。</p>}
             {s.visible.map(card)}
           </div>
         </>

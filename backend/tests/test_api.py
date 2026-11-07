@@ -114,3 +114,11 @@ def test_input_limits_block_oversized_prompts(service):
     assert save(readingChoices={f"語{i}": "ご" for i in range(21)}).status_code == 422
     assert c.post(f"/tankas/{tid}/preprocess", json={"body": body, "readingOverrides": {"文字": "x" * 30}}, headers=AUTH).status_code == 422
     assert save(readingChoices={"文字": "もんじ"}).status_code == 201
+
+
+def test_unreadable_input_returns_message(service):
+    c = client(service)
+    tid = c.post("/tankas", headers=AUTH).json()["tankaId"]
+    r = c.post(f"/tankas/{tid}/preprocess", json={"body": "あ" * 31}, headers=AUTH)
+    assert r.status_code == 422
+    assert r.json()["detail"].startswith("短歌として読み取れませんでした")

@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from ..models import EXPECTED_MORA, Segment, Token
 from .kana import count_morae, is_kana, to_hiragana, to_katakana
 from .normalize import normalize
+from .readable import unreadable_reason
 from .segment import SegmentationError, SegToken, segment
 from .style import guess_style
 from .tokenizer import RawToken, colloquial_tokenizer, tokenizer_for
@@ -18,6 +19,20 @@ from .tokenizer import RawToken, colloquial_tokenizer, tokenizer_for
 
 class PreprocessError(ValueError):
     pass
+
+
+class UnreadableError(PreprocessError):
+    """短歌として読み取れない入力（チェックをしない）。"""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"短歌として読み取れませんでした（{reason}）")
+        self.reason = reason
+
+
+def _check_readable(text: str, spanned) -> None:
+    reason = unreadable_reason(text, [t for t, _ in spanned])
+    if reason:
+        raise UnreadableError(reason)
 
 
 @dataclass
@@ -158,6 +173,7 @@ def preprocess(
     overrides = {**(reading_memory or {}), **(reading_overrides or {})}
     tok = tokenizer_for(final_style)
     tok_name, spanned = tokenize_body(norm.text, final_style, overrides)
+    _check_readable(norm.text, spanned)
 
     try:
         seg_results = segment(
@@ -250,6 +266,7 @@ def build_from_confirmed(
         pos += len(text)
 
     _, spanned = tokenize_body(norm.text, style, reading_memory or {})
+    _check_readable(norm.text, spanned)
     tokens = _build_tokens(spanned, segments)
     return BuiltRevision(
         body=body,

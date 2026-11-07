@@ -64,7 +64,7 @@ export default function PcResult({ mode, revisionIdOverride }: { mode: Mode; rev
         )}
         {actions.error && <p className="error" style={{ margin: 0 }}>{actions.error}</p>}
         {s.asyncPending && <h2>定型のチェック {s.visible.length}件</h2>}
-        {s.visible.length === 0 && !s.asyncPending && <p className="muted" style={{ margin: 0, fontSize: 14 }}>表示する指摘はありません。</p>}
+        {s.visible.length === 0 && !s.asyncPending && <p className="muted" style={{ margin: 0, fontSize: 14, lineHeight: 1.7 }}>見つかったつまずきはありません。歌の良し悪しを判定するものではなく、よくあるつまずきが見当たらなかった、という意味です。</p>}
         {s.visible.map((f) => (
           <PcFindingCard
             key={f.fingerprint}
