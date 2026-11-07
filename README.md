@@ -30,6 +30,13 @@ uv venv .venv && uv pip install --python .venv/bin/python -r requirements-dev.tx
 .venv/bin/uvicorn app.main:get_app --factory --port 8080
 ```
 
+Firestore 実装は、エミュレータに対してリポジトリ層の契約テスト（メモリ実装と同じテスト）を流して確かめる。
+firebase-tools と Java が必要。
+
+```bash
+backend/scripts/test_firestore.sh
+```
+
 既定は `REPOSITORY=memory`、`AUTH_MODE=dev`（`Authorization: Bearer dev:<uid>` を受け付ける）、`LLM_PROVIDER=none`。
 
 ### 画面まで（Firebase Emulator を使う）
