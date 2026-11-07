@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from google.cloud import firestore
+from google.cloud.firestore_v1.field_path import FieldPath
 
 from ..models import CheckRun, Feedback, Revision, Tanka
 from .base import NotFound
@@ -103,7 +104,7 @@ class FirestoreRepository:
                 "updatedAt": now,
             }
             for surface, reading in reading_memory.items():
-                update[firestore.FieldPath(["readingMemory", surface]).to_api_repr()] = reading
+                update[FieldPath("readingMemory", surface).to_api_repr()] = reading
             tx.update(tanka_ref, update)
             return rev
 
