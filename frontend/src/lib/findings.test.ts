@@ -47,7 +47,7 @@ describe("summarize", () => {
 
   it("非同期が判定中なら同期の結果だけを出す", () => {
     const pending = [runs[0], run({ phase: "async", status: "running" })];
-    const s = summarize(pending, []);
+    const s = summarize(pending, [], undefined, 1000);
     expect(s.asyncPending).toBe(true);
     expect(s.visible.map((x) => x.fingerprint)).toEqual(["A1:5", "C3:1"]);
     expect(s.counts.resolved).toBe(1);
@@ -84,5 +84,16 @@ describe("markSpans", () => {
     expect(markSpans("あいうえお", [[1, 3]])).toEqual([
       { text: "あ", marked: false }, { text: "いう", marked: true }, { text: "えお", marked: false },
     ]);
+  });
+});
+
+describe("止まった意味のチェック", () => {
+  it("3分を超えて実行中のままなら、止まったものとみなす", () => {
+    const started = new Date("2026-11-07T12:00:00Z");
+    const runs = [run({ phase: "async", status: "running", startedAt: started })];
+    const soon = summarize(runs, [], undefined, started.getTime() + 60_000);
+    expect([soon.asyncPending, soon.asyncStalled]).toEqual([true, false]);
+    const later = summarize(runs, [], undefined, started.getTime() + 4 * 60_000);
+    expect([later.asyncPending, later.asyncStalled]).toEqual([false, true]);
   });
 });

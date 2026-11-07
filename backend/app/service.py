@@ -22,7 +22,9 @@ from .tasks import Enqueuer
 log = logging.getLogger(__name__)
 
 
-GLOBAL_USAGE_KEY = "__all__"
+# サービス全体の回数を数えるキー（users/{id} に置く）。
+# Firebase の uid（英数字）と重ならず、Firestore の予約ID（__ で始まり __ で終わる）でもない名前にする
+GLOBAL_USAGE_KEY = "service-total"
 
 
 class Forbidden(PermissionError):

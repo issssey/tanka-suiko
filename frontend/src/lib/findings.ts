@@ -70,9 +70,14 @@ export interface RevisionFindings {
   resolved: string[];
   counts: { resolved: number; continued: number; new: number };
   asyncPending: boolean;
+  /** 意味のチェックが「実行中」のまま、長く終わっていない（再チェックを出す） */
+  asyncStalled: boolean;
 }
 
-export function summarize(runs: CheckRun[], feedback: Feedback[], opts: DisplayOptions = DEFAULT_DISPLAY): RevisionFindings {
+/** これより長く「実行中」のままなら、止まったものとみなす（通常は30秒ほどで終わる） */
+export const STALLED_AFTER_MS = 3 * 60 * 1000;
+
+export function summarize(runs: CheckRun[], feedback: Feedback[], opts: DisplayOptions = DEFAULT_DISPLAY, now: number = Date.now()): RevisionFindings {
   const sync = latestRun(runs, "sync");
   const asyncRun = latestRun(runs, "async");
   const all = [...(sync?.findings ?? []), ...(asyncRun?.status === "done" ? asyncRun.findings : [])];
@@ -101,8 +106,14 @@ export function summarize(runs: CheckRun[], feedback: Feedback[], opts: DisplayO
       continued: visible.filter((f) => f.transition === "continued").length,
       new: visible.filter((f) => f.transition === "new").length,
     },
-    asyncPending: asyncRun?.status === "queued" || asyncRun?.status === "running",
+    ...pendingState(asyncRun, now),
   };
+}
+
+function pendingState(run: CheckRun | undefined, now: number) {
+  const pending = run?.status === "queued" || run?.status === "running";
+  const stalled = pending && !!run && now - new Date(run.startedAt).getTime() > STALLED_AFTER_MS;
+  return { asyncPending: pending && !stalled, asyncStalled: stalled };
 }
 
 export function severityCounts(findings: Finding[]): Record<Severity, number> {

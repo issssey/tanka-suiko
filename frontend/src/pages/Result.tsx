@@ -136,7 +136,7 @@ export default function ResultPage() {
           </span>
         </div>
       ) : (
-        <AsyncStatus run={s.async} onRecheck={runAgain} busy={busy === "recheck"} />
+        <AsyncStatus run={s.async} stalled={s.asyncStalled} onRecheck={runAgain} busy={busy === "recheck"} />
       )}
       {error && <p className="error">{error}</p>}
 
@@ -203,8 +203,16 @@ export default function ResultPage() {
   );
 }
 
-function AsyncStatus({ run, onRecheck, busy }: { run?: CheckRun; onRecheck: () => void; busy: boolean }) {
+function AsyncStatus({ run, stalled, onRecheck, busy }: { run?: CheckRun; stalled: boolean; onRecheck: () => void; busy: boolean }) {
   if (!run) return null;
+  if (stalled) {
+    return (
+      <div className="status-line" role="status">
+        <span style={{ flex: 1 }}>意味のチェックが終わっていません。もう一度お試しください</span>
+        <button type="button" className="pill" disabled={busy} onClick={onRecheck}>再チェック</button>
+      </div>
+    );
+  }
   const text: Record<CheckRun["status"], string> = {
     queued: "意味のチェックを実行中です。通常30秒ほどで終わります。画面を離れても結果は保存されます。",
     running: "意味のチェックを実行中です。通常30秒ほどで終わります。画面を離れても結果は保存されます。",

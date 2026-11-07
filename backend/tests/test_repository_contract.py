@@ -204,3 +204,12 @@ def test_daily_usage_and_user_data(repo):
     assert repo.increment_daily_usage("u1", "2026-11-08") == 1
     repo.delete_user_data("u1")
     assert repo.increment_daily_usage("u1", "2026-11-08") == 1
+
+
+def test_service_total_usage_key_is_accepted(repo):
+    """サービス全体の回数を数えるキーが、Firestore で使えるドキュメントIDであること
+    （__ で始まり __ で終わるIDは Firestore が予約していて書けない）。"""
+    from app.service import GLOBAL_USAGE_KEY
+
+    assert repo.increment_daily_usage(GLOBAL_USAGE_KEY, "2026-11-07") == 1
+    assert repo.increment_daily_usage(GLOBAL_USAGE_KEY, "2026-11-07") == 2

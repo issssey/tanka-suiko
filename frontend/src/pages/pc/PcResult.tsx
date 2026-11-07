@@ -59,7 +59,7 @@ export default function PcResult({ mode, revisionIdOverride }: { mode: Mode; rev
         ) : (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <h2>指摘 {s.visible.length}件</h2>
-            <AsyncState run={s.async} onRecheck={actions.recheck} busy={actions.busy === "recheck"} />
+            <AsyncState run={s.async} stalled={s.asyncStalled} onRecheck={actions.recheck} busy={actions.busy === "recheck"} />
           </div>
         )}
         {actions.error && <p className="error" style={{ margin: 0 }}>{actions.error}</p>}
@@ -330,8 +330,16 @@ function HiddenList({ base, feedback, lookup, actions }: { base: string; feedbac
   );
 }
 
-function AsyncState({ run, onRecheck, busy }: { run?: CheckRun; onRecheck: () => void; busy: boolean }) {
+function AsyncState({ run, stalled, onRecheck, busy }: { run?: CheckRun; stalled: boolean; onRecheck: () => void; busy: boolean }) {
   if (!run) return null;
+  if (stalled) {
+    return (
+      <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--muted)" }}>
+        意味のチェックが終わっていません
+        <button type="button" className="pill" style={{ height: 28, fontSize: 12 }} disabled={busy} onClick={onRecheck}>再チェック</button>
+      </span>
+    );
+  }
   const label: Partial<Record<CheckRun["status"], string>> = {
     done: "すべてのチェック完了",
     skipped: "意味のチェックは省きました",
