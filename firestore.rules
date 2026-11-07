@@ -1,19 +1,21 @@
 rules_version = '2';
 
-// 書き込みはすべてCloud RunのAPI・ワーカー（サービスアカウント。ルールの対象外）が行う。
-// クライアントは自分の短歌の読み取りだけができる。
+// 書き込みと削除はすべてCloud RunのAPI・ワーカー（サービスアカウント。ルールの対象外）が行う。
+// クライアントは自分の短歌の読み取りだけができる。削除中（deletedAt あり）の短歌は読めない。
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function ownsTanka(tankaId) {
-      return signedIn() && get(/databases/$(database)/documents/tankas/$(tankaId)).data.authorId == request.auth.uid;
+      let t = get(/databases/$(database)/documents/tankas/$(tankaId)).data;
+      return signedIn() && t.authorId == request.auth.uid && t.deletedAt == null;
     }
 
     match /tankas/{tankaId} {
-      allow read: if signedIn() && resource.data.authorId == request.auth.uid;
+      // 一覧のクエリは where("deletedAt", "==", null) を付ける（付けないとルールで拒否される）
+      allow read: if signedIn() && resource.data.authorId == request.auth.uid && resource.data.deletedAt == null;
       allow write: if false;
 
-      // 推敲版は保存後に変更しない（createのみ。クライアントからは作らない）
+      // 推敲版は保存後に変更しない。削除は短歌ごとのみで、稿を1つだけ消す操作は提供しない
       match /revisions/{revisionId} {
         allow read: if ownsTanka(tankaId);
         allow create, update, delete: if false;

@@ -23,11 +23,16 @@ class MemoryRepository:
         self.runs: dict[tuple[str, str], dict[str, CheckRun]] = {}
         self.feedback: dict[str, dict[str, Feedback]] = {}
         self.usage: dict[tuple[str, str], int] = {}
+        self.users: set[str] = set()
 
-    def create_tanka(self, author_id: str, title: str | None) -> Tanka:
+    def _active(self, tanka_id: str) -> bool:
+        t = self.tankas.get(tanka_id)
+        return t is not None and t.deletedAt is None
+
+    def create_tanka(self, author_id: str) -> Tanka:
         with self._lock:
             now = _now()
-            t = Tanka(id=f"t_{uuid.uuid4().hex[:12]}", authorId=author_id, title=title, createdAt=now, updatedAt=now)
+            t = Tanka(id=f"t_{uuid.uuid4().hex[:12]}", authorId=author_id, createdAt=now, updatedAt=now)
             self.tankas[t.id] = t
             self.revisions[t.id] = {}
             self.feedback[t.id] = {}
@@ -39,16 +44,23 @@ class MemoryRepository:
                 raise NotFound(tanka_id)
             return self.tankas[tanka_id].model_copy(deep=True)
 
+    def list_tankas_by_author(self, author_id: str) -> list[Tanka]:
+        with self._lock:
+            ts = [t for t in self.tankas.values() if t.authorId == author_id and t.deletedAt is None]
+            return [t.model_copy(deep=True) for t in sorted(ts, key=lambda t: t.updatedAt, reverse=True)]
+
     def create_revision(self, tanka_id: str, data: dict[str, Any], reading_memory: dict[str, str]) -> Revision:
         with self._lock:
-            tanka = self.tankas.get(tanka_id)
-            if tanka is None:
+            if not self._active(tanka_id):
                 raise NotFound(tanka_id)
+            tanka = self.tankas[tanka_id]
             no = tanka.nextRevisionNo
             rev = Revision(id=f"r_{uuid.uuid4().hex[:12]}", revisionNo=no, createdAt=_now(), **data)
             self.revisions[tanka_id][rev.id] = rev
             tanka.nextRevisionNo = no + 1
             tanka.currentRevisionId = rev.id
+            tanka.latestBody = rev.bodyNormalized
+            tanka.latestRevisionNo = no
             tanka.updatedAt = rev.createdAt
             tanka.readingMemory = {**tanka.readingMemory, **reading_memory}
             return rev.model_copy(deep=True)
@@ -65,15 +77,20 @@ class MemoryRepository:
             revs = self.revisions.get(tanka_id, {}).values()
             return [r.model_copy(deep=True) for r in sorted(revs, key=lambda r: r.revisionNo)]
 
-    def add_check_run(self, tanka_id: str, revision_id: str, run: CheckRun) -> CheckRun:
+    def add_check_run_if_active(self, tanka_id: str, revision_id: str, run: CheckRun) -> CheckRun | None:
         with self._lock:
+            if not self._active(tanka_id):
+                return None
             run = run.model_copy(update={"id": run.id or f"c_{uuid.uuid4().hex[:12]}"}, deep=True)
             self.runs.setdefault((tanka_id, revision_id), {})[run.id] = run
             return run.model_copy(deep=True)
 
-    def update_check_run(self, tanka_id: str, revision_id: str, run: CheckRun) -> None:
+    def update_check_run_if_active(self, tanka_id: str, revision_id: str, run: CheckRun) -> bool:
         with self._lock:
+            if not self._active(tanka_id):
+                return False
             self.runs.setdefault((tanka_id, revision_id), {})[run.id] = run.model_copy(deep=True)
+            return True
 
     def list_check_runs(self, tanka_id: str, revision_id: str) -> list[CheckRun]:
         with self._lock:
@@ -82,6 +99,8 @@ class MemoryRepository:
 
     def set_feedback(self, tanka_id: str, feedback: Feedback) -> None:
         with self._lock:
+            if not self._active(tanka_id):
+                raise NotFound(tanka_id)
             self.feedback.setdefault(tanka_id, {})[feedback.fingerprint] = feedback.model_copy(deep=True)
 
     def delete_feedback(self, tanka_id: str, fingerprint: str) -> None:
@@ -94,6 +113,31 @@ class MemoryRepository:
 
     def increment_daily_usage(self, user_id: str, day: str) -> int:
         with self._lock:
+            self.users.add(user_id)
             key = (user_id, day)
             self.usage[key] = self.usage.get(key, 0) + 1
             return self.usage[key]
+
+    def mark_deleted(self, tanka_id: str, at: datetime) -> None:
+        with self._lock:
+            t = self.tankas.get(tanka_id)
+            if t is not None and t.deletedAt is None:
+                t.deletedAt = at
+
+    def purge_tanka(self, tanka_id: str) -> None:
+        with self._lock:
+            self.tankas.pop(tanka_id, None)
+            self.revisions.pop(tanka_id, None)
+            self.feedback.pop(tanka_id, None)
+            for key in [k for k in self.runs if k[0] == tanka_id]:
+                del self.runs[key]
+
+    def list_deleted_tankas(self, before: datetime) -> list[str]:
+        with self._lock:
+            return [t.id for t in self.tankas.values() if t.deletedAt is not None and t.deletedAt < before]
+
+    def delete_user_data(self, user_id: str) -> None:
+        with self._lock:
+            self.users.discard(user_id)
+            for key in [k for k in self.usage if k[0] == user_id]:
+                del self.usage[key]

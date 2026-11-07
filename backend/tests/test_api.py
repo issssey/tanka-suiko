@@ -13,7 +13,7 @@ def client(service):
 
 def test_full_flow(service):
     c = client(service)
-    r = c.post("/tankas", json={"title": "駅のホーム"}, headers=AUTH)
+    r = c.post("/tankas", headers=AUTH)
     assert r.status_code == 201
     tid = r.json()["tankaId"]
 
@@ -47,15 +47,15 @@ def test_full_flow(service):
 
 def test_auth_required(service):
     c = client(service)
-    assert c.post("/tankas", json={}).status_code == 401
-    tid = c.post("/tankas", json={}, headers=AUTH).json()["tankaId"]
+    assert c.post("/tankas").status_code == 401
+    tid = c.post("/tankas", headers=AUTH).json()["tankaId"]
     assert c.post(f"/tankas/{tid}/preprocess", json={"body": "夕暮れの駅"}, headers=OTHER).status_code == 403
     assert c.post("/tankas/none/preprocess", json={"body": "夕暮れの駅"}, headers=AUTH).status_code == 404
 
 
 def test_validation_errors(service):
     c = client(service)
-    tid = c.post("/tankas", json={}, headers=AUTH).json()["tankaId"]
+    tid = c.post("/tankas", headers=AUTH).json()["tankaId"]
     assert c.post(f"/tankas/{tid}/preprocess", json={"body": "あめ"}, headers=AUTH).status_code == 422
     bad = c.post(f"/tankas/{tid}/revisions", json={
         "body": "あいうえおかきくけこ", "segments": [{"no": 1, "text": "あ", "reading": "あ"}],
@@ -73,4 +73,4 @@ def test_roles(service):
     api_only = TestClient(create_app(Settings(app_role="api"), service=service))
     assert api_only.post("/internal/async-check", json={}).status_code == 404
     worker = TestClient(create_app(Settings(app_role="worker"), service=service))
-    assert worker.post("/tankas", json={}, headers=AUTH).status_code == 404
+    assert worker.post("/tankas", headers=AUTH).status_code == 404

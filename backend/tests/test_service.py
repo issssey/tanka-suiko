@@ -31,7 +31,7 @@ def llm_returning(findings_by_call):
 
 
 def test_save_runs_sync_and_async(service, fake_llm):
-    t = service.create_tanka(USER, "駅のホーム")
+    t = service.create_tanka(USER)
     res = save(service, t.id, "夕暮れの駅のホームの片隅で君を待つ間に涙こぼれて")
     assert res.revision.revisionNo == 1
     assert res.sync_run.status == "done"
@@ -60,7 +60,7 @@ def test_llm_findings_are_mapped_from_token_numbers(service, fake_llm):
         {"code": "B2", "tokenStart": 999, "tokenEnd": 999, "confidence": 0.9, "reason": "範囲外"},
         {"code": "A1", "tokenStart": 0, "tokenEnd": 0, "confidence": 0.9, "reason": "ルールのコード"},
     ]])
-    t = service.create_tanka(USER, None)
+    t = service.create_tanka(USER)
     res = save(service, t.id, body)
     run = [r for r in service.repo.list_check_runs(t.id, res.revision.id) if r.phase == "async"][0]
     by_code = {f.code: f for f in run.findings}
@@ -74,7 +74,7 @@ def test_llm_findings_are_mapped_from_token_numbers(service, fake_llm):
 
 
 def test_transitions_across_revisions(service, fake_llm):
-    t = service.create_tanka(USER, None)
+    t = service.create_tanka(USER)
     body1 = "夕暮れの駅のホームの片隅で頬を伝う涙ひとり寂しく"
     body2 = "夕暮れの駅のホームで寂しくて君からの文字何度も読み返す"
     idx1 = next(x.index for x in preprocess(body1).tokens if x.surface == "寂しく")
@@ -99,7 +99,7 @@ def test_transitions_across_revisions(service, fake_llm):
 
 
 def test_skips_when_newer_revision_saved(service, fake_llm):
-    t = service.create_tanka(USER, None)
+    t = service.create_tanka(USER)
     queued = []
     service.enqueuer.handler = queued.append  # 実行を遅らせる
     r1 = save(service, t.id, "夕暮れの駅のホームの片隅で君を待つ間に涙こぼれて")
@@ -112,7 +112,7 @@ def test_skips_when_newer_revision_saved(service, fake_llm):
 
 
 def test_reuses_result_when_text_unchanged(service, fake_llm):
-    t = service.create_tanka(USER, None)
+    t = service.create_tanka(USER)
     body = "夕暮れの駅のホームの片隅で君を待つ間に涙こぼれて"
     r1 = save(service, t.id, body)
     r2 = save(service, t.id, body, parent=r1.revision.id, note="メモだけ変更")
@@ -123,7 +123,7 @@ def test_reuses_result_when_text_unchanged(service, fake_llm):
 
 def test_daily_limit(service, fake_llm):
     service.settings = service.settings.__class__(**{**service.settings.__dict__, "async_daily_limit": 1})
-    t = service.create_tanka(USER, None)
+    t = service.create_tanka(USER)
     r1 = save(service, t.id, "夕暮れの駅のホームの片隅で君を待つ間に涙こぼれて")
     r2 = save(service, t.id, "夕暮れの駅のホームで寂しくて君からの文字何度も読み返す", parent=r1.revision.id)
     run2 = [r for r in service.repo.list_check_runs(t.id, r2.revision.id) if r.phase == "async"][0]
@@ -135,14 +135,14 @@ def test_llm_failure_marks_run_failed(service, fake_llm):
         raise LLMError("拒否")
 
     fake_llm.responder = boom
-    t = service.create_tanka(USER, None)
+    t = service.create_tanka(USER)
     r = save(service, t.id, "夕暮れの駅のホームの片隅で君を待つ間に涙こぼれて")
     run = [x for x in service.repo.list_check_runs(t.id, r.revision.id) if x.phase == "async"][0]
     assert run.status == "failed" and run.error == "拒否"
 
 
 def test_async_run_is_idempotent(service, fake_llm):
-    t = service.create_tanka(USER, None)
+    t = service.create_tanka(USER)
     r = save(service, t.id, "夕暮れの駅のホームの片隅で君を待つ間に涙こぼれて")
     run = [x for x in service.repo.list_check_runs(t.id, r.revision.id) if x.phase == "async"][0]
     again = service.run_async_check(t.id, r.revision.id, run.id)
@@ -150,7 +150,7 @@ def test_async_run_is_idempotent(service, fake_llm):
 
 
 def test_recheck_adds_runs(service):
-    t = service.create_tanka(USER, None)
+    t = service.create_tanka(USER)
     r = save(service, t.id, "夕暮れの駅のホームの片隅で君を待つ間に涙こぼれて")
     service.recheck(USER, t.id, r.revision.id)
     runs = service.repo.list_check_runs(t.id, r.revision.id)
@@ -159,7 +159,7 @@ def test_recheck_adds_runs(service):
 
 
 def test_reading_choices_are_remembered(service):
-    t = service.create_tanka(USER, None)
+    t = service.create_tanka(USER)
     body = "夕暮れの駅のホームで寂しくて君からの文字何度も読み返す"
     pre, segs = confirmed(body, readings={4: "きみからのもんじ"})
     service.create_revision(USER, t.id, parent_revision_id=None, body=body, segments=segs, style="colloquial",
@@ -170,19 +170,19 @@ def test_reading_choices_are_remembered(service):
 
 
 def test_other_users_cannot_write(service):
-    t = service.create_tanka(USER, None)
+    t = service.create_tanka(USER)
     with pytest.raises(Forbidden):
         service.preprocess("someone", t.id, "夕暮れの駅のホーム", style=None, orthography=None, reading_overrides=None)
 
 
 def test_bad_parent(service):
-    t = service.create_tanka(USER, None)
+    t = service.create_tanka(USER)
     with pytest.raises(BadRequest):
         save(service, t.id, "夕暮れの駅のホームの片隅で君を待つ間に涙こぼれて", parent="nope")
 
 
 def test_feedback(service):
-    t = service.create_tanka(USER, None)
+    t = service.create_tanka(USER)
     service.set_feedback(USER, t.id, "A1:5", "intentional", None)
     assert [f.status for f in service.repo.list_feedback(t.id)] == ["intentional"]
     service.delete_feedback(USER, t.id, "A1:5")
@@ -224,7 +224,7 @@ def test_word_fingerprint_is_stable_when_llm_span_changes(service, fake_llm):
          {"code": "B2", "tokenStart": namida - 3, "tokenEnd": namida, "confidence": 0.9, "reason": "常套句"}],
         [{"code": "B1", "tokenStart": s2, "tokenEnd": s2 + 1, "confidence": 0.9, "reason": "感情語"}],  # 「寂しくて」
     ])
-    t = service.create_tanka(USER, None)
+    t = service.create_tanka(USER)
     r1 = save(service, t.id, body1)
     r2 = save(service, t.id, body2, parent=r1.revision.id)
     run1 = [r for r in service.repo.list_check_runs(t.id, r1.revision.id) if r.phase == "async"][0]

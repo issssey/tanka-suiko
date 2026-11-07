@@ -1,7 +1,8 @@
 """非同期チェックの登録。
 
-本番は Cloud Tasks → ワーカーの Cloud Run（/internal/async-check）。
-配信を数秒遅らせ、連続保存されたときは最後の版だけをLLMにかける（ワーカー側で判定）。
+本番は Cloud Tasks → ワーカーの Cloud Run。
+- 非同期チェック（/internal/async-check）：配信を数秒遅らせ、連続保存されたときは最後の版だけをLLMにかける
+- 短歌の削除の再試行（/internal/purge-tanka）：payload の kind が "purge" のもの
 """
 
 from __future__ import annotations
@@ -51,13 +52,17 @@ class InlineEnqueuer:
 
 
 class CloudTasksEnqueuer:
+    PATHS = {"purge": "/internal/purge-tanka"}
+    DEFAULT_PATH = "/internal/async-check"
+
     def __init__(self, queue: str, worker_url: str, service_account: str, audience: str | None = None) -> None:
+        """worker_url はワーカーのサービスのURL（https://<worker>）。パスはタスクの種類で決める。"""
         from google.cloud import tasks_v2
 
         self._tasks_v2 = tasks_v2
         self.client = tasks_v2.CloudTasksClient()
         self.queue = queue
-        self.worker_url = worker_url
+        self.worker_url = worker_url.rstrip("/")
         self.service_account = service_account
         self.audience = audience or worker_url
 
@@ -70,7 +75,7 @@ class CloudTasksEnqueuer:
         task = tasks_v2.Task(
             http_request=tasks_v2.HttpRequest(
                 http_method=tasks_v2.HttpMethod.POST,
-                url=self.worker_url,
+                url=self.worker_url + self.PATHS.get(payload.get("kind", ""), self.DEFAULT_PATH),
                 headers={"Content-Type": "application/json"},
                 body=json.dumps(payload).encode(),
                 oidc_token=tasks_v2.OidcToken(

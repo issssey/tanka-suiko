@@ -24,7 +24,7 @@ class Settings:
     # cloudtasks / inline / sync（sync はテスト用。その場で実行する）
     tasks_mode: str = "inline"
     tasks_queue: str | None = None  # projects/<p>/locations/<l>/queues/<q>
-    worker_url: str | None = None  # https://<worker>/internal/async-check
+    worker_url: str | None = None  # ワーカーのサービスのURL（https://<worker>）
     tasks_service_account: str | None = None
     worker_audience: str | None = None
     # 連続保存のとき、最後の版だけLLMにかけるための遅延（秒）

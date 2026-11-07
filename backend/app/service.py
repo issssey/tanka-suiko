@@ -5,7 +5,8 @@ from __future__ import annotations
 import hashlib
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from typing import Any, Callable
 from zoneinfo import ZoneInfo
 
 from .checkers.base import CheckContext
@@ -59,18 +60,18 @@ class Service:
 
     # --- 認可 ---
     def _own_tanka(self, user_id: str, tanka_id: str) -> Tanka:
-        try:
-            tanka = self.repo.get_tanka(tanka_id)
-        except NotFound:
-            raise
+        """自分の短歌を返す。削除中の短歌は存在しないものとして扱う。"""
+        tanka = self.repo.get_tanka(tanka_id)
+        if tanka.deletedAt is not None:
+            raise NotFound(tanka_id)
         if tanka.authorId != user_id:
             raise Forbidden(tanka_id)
         return tanka
 
     # --- 短歌 ---
-    def create_tanka(self, user_id: str, title: str | None) -> Tanka:
-        title = (title or "").strip() or None
-        return self.repo.create_tanka(user_id, title)
+    def create_tanka(self, user_id: str) -> Tanka:
+        """短歌を新規作成する。題は持たない。"""
+        return self.repo.create_tanka(user_id)
 
     def preprocess(self, user_id: str, tanka_id: str, body: str, *, style: str | None, orthography: str | None,
                    reading_overrides: dict[str, str] | None) -> PreprocessResult:
@@ -171,7 +172,10 @@ class Service:
             startedAt=started,
             finishedAt=_now(),
         )
-        return self.repo.add_check_run(tanka_id, revision.id, run)
+        saved = self.repo.add_check_run_if_active(tanka_id, revision.id, run)
+        if saved is None:
+            raise NotFound(tanka_id)
+        return saved
 
     # --- 非同期チェック ---
     def _queue_async(self, tanka_id: str, revision: Revision, trigger: str) -> CheckRun:
@@ -186,7 +190,10 @@ class Service:
             trigger=trigger,
             startedAt=_now(),
         )
-        run = self.repo.add_check_run(tanka_id, revision.id, run)
+        saved = self.repo.add_check_run_if_active(tanka_id, revision.id, run)
+        if saved is None:
+            raise NotFound(tanka_id)
+        run = saved
         self.enqueuer.enqueue(
             {"tankaId": tanka_id, "revisionId": revision.id, "runId": run.id},
             self.settings.async_delay_seconds if trigger == "save" else 0,
@@ -201,11 +208,14 @@ class Service:
         if run.status not in ("queued", "running"):
             return run  # Cloud Tasks の再配信。すでに処理済み
         tanka = self.repo.get_tanka(tanka_id)
+        if tanka.deletedAt is not None:
+            return run.model_copy(update={"status": "skipped"})  # 削除中。何も書かない
         revision = self.repo.get_revision(tanka_id, revision_id)
 
         def finish(status: str, **fields) -> CheckRun:
             done = run.model_copy(update={"status": status, "finishedAt": _now(), **fields})
-            self.repo.update_check_run(tanka_id, revision_id, done)
+            # 実行中に短歌が削除されていたら書かない（削除したはずの checkRuns を残さない）
+            self.repo.update_check_run_if_active(tanka_id, revision_id, done)
             return done
 
         # 連続保存：最新の版でなければLLMにかけない
@@ -230,7 +240,8 @@ class Service:
             return finish("limited")
 
         running = run.model_copy(update={"status": "running"})
-        self.repo.update_check_run(tanka_id, revision_id, running)
+        if not self.repo.update_check_run_if_active(tanka_id, revision_id, running):
+            return running
         try:
             outcome = run_async(ctx, self.llm, previous)
         except LLMError as e:
@@ -239,12 +250,93 @@ class Service:
         return finish("done", findings=outcome.findings, resolvedFingerprints=outcome.resolved)
 
     # --- 作者の判断 ---
-    def set_feedback(self, user_id: str, tanka_id: str, fingerprint: str, status: str, comment: str | None) -> Feedback:
+    def set_feedback(self, user_id: str, tanka_id: str, fingerprint: str, status: str, comment: str | None,
+                     revision_id: str | None = None) -> Feedback:
         self._own_tanka(user_id, tanka_id)
-        fb = Feedback(fingerprint=fingerprint, status=status, comment=(comment or "").strip() or None, createdAt=_now())
+        revision_no = None
+        if revision_id is not None:
+            try:
+                revision_no = self.repo.get_revision(tanka_id, revision_id).revisionNo
+            except NotFound as e:
+                raise BadRequest("稿が見つかりません") from e
+        fb = Feedback(fingerprint=fingerprint, status=status, comment=(comment or "").strip() or None,
+                      revisionNo=revision_no, createdAt=_now())
         self.repo.set_feedback(tanka_id, fb)
         return fb
 
     def delete_feedback(self, user_id: str, tanka_id: str, fingerprint: str) -> None:
         self._own_tanka(user_id, tanka_id)
         self.repo.delete_feedback(tanka_id, fingerprint)
+
+    # --- 削除 ---
+    def delete_tanka(self, user_id: str, tanka_id: str) -> None:
+        """短歌を削除する。すべての稿・チェック結果・作者の判断をまとめて消す（元に戻せない）。
+
+        1. deletedAt を立てる（一覧から即座に消え、以降の書き込みを拒否する目印）
+        2. 配下をまとめて消す
+        3. 途中で失敗したら、削除のタスクを登録して再試行する
+        """
+        self._own_tanka(user_id, tanka_id)
+        self.repo.mark_deleted(tanka_id, _now())
+        self._purge_or_retry(tanka_id)
+
+    def _purge_or_retry(self, tanka_id: str) -> None:
+        try:
+            self.repo.purge_tanka(tanka_id)
+        except Exception:
+            log.exception("短歌の削除に失敗しました。再試行を登録します: %s", tanka_id)
+            self.enqueuer.enqueue({"kind": "purge", "tankaId": tanka_id}, 30)
+
+    def purge_tanka(self, tanka_id: str) -> None:
+        """削除のタスク（ワーカー）。削除中の目印がある短歌だけを消す。"""
+        try:
+            tanka = self.repo.get_tanka(tanka_id)
+        except NotFound:
+            return
+        if tanka.deletedAt is None:
+            return  # 目印のない短歌は消さない
+        self.repo.purge_tanka(tanka_id)
+
+    def cleanup_deleted(self, older_than: timedelta = timedelta(minutes=10)) -> int:
+        """deletedAt が立ったまま残っている短歌を消し直す（定期ジョブ）。"""
+        ids = self.repo.list_deleted_tankas(_now() - older_than)
+        for tanka_id in ids:
+            try:
+                self.repo.purge_tanka(tanka_id)
+            except Exception:
+                log.exception("短歌の消し直しに失敗しました: %s", tanka_id)
+        return len(ids)
+
+    # --- アカウント ---
+    def export_user(self, user_id: str) -> dict[str, Any]:
+        """自分のすべての短歌と稿を書き出す。"""
+        tankas = []
+        for t in self.repo.list_tankas_by_author(user_id):
+            revisions = self.repo.list_revisions(t.id)
+            tankas.append({
+                "id": t.id,
+                "createdAt": t.createdAt.isoformat(),
+                "updatedAt": t.updatedAt.isoformat(),
+                "revisions": [
+                    {
+                        "revisionNo": r.revisionNo,
+                        "body": r.body,
+                        "reading": r.reading,
+                        "segments": [{"no": s.no, "text": s.text, "reading": s.reading, "mora": s.mora} for s in r.segments],
+                        "style": r.style,
+                        "orthography": r.orthography,
+                        "note": r.note,
+                        "createdAt": r.createdAt.isoformat(),
+                    }
+                    for r in revisions
+                ],
+            })
+        return {"exportedAt": _now().isoformat(), "tankas": tankas}
+
+    def delete_account(self, user_id: str, delete_auth_user: Callable[[str], None]) -> None:
+        """アカウント削除。すべての短歌を削除し、Firebase Authentication のユーザーも消す。"""
+        for t in self.repo.list_tankas_by_author(user_id):
+            self.repo.mark_deleted(t.id, _now())
+            self._purge_or_retry(t.id)
+        self.repo.delete_user_data(user_id)
+        delete_auth_user(user_id)

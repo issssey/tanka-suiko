@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from .auth import current_user, verify_tasks_caller
+from .auth import current_user, delete_firebase_user, verify_tasks_caller
 from .checkers.llm import AnthropicJSONClient, LLMChecker, NullLLMClient
 from .config import Settings, get_settings
 from .patterns import load_patterns
@@ -27,10 +27,6 @@ logging.basicConfig(level=logging.INFO)
 
 
 # --- 入出力 ---------------------------------------------------------------
-
-
-class CreateTankaIn(BaseModel):
-    title: str | None = None
 
 
 class PreprocessIn(BaseModel):
@@ -59,12 +55,17 @@ class CreateRevisionIn(BaseModel):
 class FeedbackIn(BaseModel):
     status: Literal["intentional", "false_positive"]
     comment: str | None = Field(default=None, max_length=500)
+    revisionId: str | None = None  # どの稿のチェック結果で設定したか
 
 
 class AsyncCheckIn(BaseModel):
     tankaId: str
     revisionId: str
     runId: str
+
+
+class PurgeIn(BaseModel):
+    tankaId: str
 
 
 # --- 組み立て ---------------------------------------------------------------
@@ -95,7 +96,10 @@ def build_service(settings: Settings) -> Service:
     service = Service(repo, SyncEnqueuer(), LLMChecker(client), settings, patterns)
 
     def handle(payload: dict) -> None:
-        service.run_async_check(payload["tankaId"], payload["revisionId"], payload["runId"])
+        if payload.get("kind") == "purge":
+            service.purge_tanka(payload["tankaId"])
+        else:
+            service.run_async_check(payload["tankaId"], payload["revisionId"], payload["runId"])
 
     if settings.tasks_mode == "cloudtasks":
         if not (settings.tasks_queue and settings.worker_url and settings.tasks_service_account):
@@ -114,6 +118,7 @@ def create_app(settings: Settings | None = None, service: Service | None = None)
     settings = settings or get_settings()
     app = FastAPI(title="短歌アンチパターン検出API", version="0.1.0")
     app.state.service = service or build_service(settings)
+    app.state.settings = settings
     app.dependency_overrides[get_settings] = lambda: settings
 
     app.add_middleware(
@@ -158,9 +163,13 @@ def api_router() -> APIRouter:
     r = APIRouter()
 
     @r.post("/tankas", status_code=status.HTTP_201_CREATED)
-    def create_tanka(body: CreateTankaIn, user: str = Depends(current_user), s: Service = Depends(svc)):
-        t = s.create_tanka(user, body.title)
-        return {"tankaId": t.id, "title": t.title}
+    def create_tanka(user: str = Depends(current_user), s: Service = Depends(svc)):
+        t = s.create_tanka(user)
+        return {"tankaId": t.id}
+
+    @r.delete("/tankas/{tanka_id}", status_code=status.HTTP_204_NO_CONTENT)
+    def delete_tanka(tanka_id: str, user: str = Depends(current_user), s: Service = Depends(svc)):
+        s.delete_tanka(user, tanka_id)
 
     @r.post("/tankas/{tanka_id}/preprocess")
     def preprocess(tanka_id: str, body: PreprocessIn, user: str = Depends(current_user), s: Service = Depends(svc)):
@@ -200,12 +209,24 @@ def api_router() -> APIRouter:
 
     @r.put("/tankas/{tanka_id}/feedback/{fingerprint}")
     def put_feedback(tanka_id: str, fingerprint: str, body: FeedbackIn, user: str = Depends(current_user), s: Service = Depends(svc)):
-        fb = s.set_feedback(user, tanka_id, fingerprint, body.status, body.comment)
+        fb = s.set_feedback(user, tanka_id, fingerprint, body.status, body.comment, body.revisionId)
         return fb.model_dump(mode="json")
 
     @r.delete("/tankas/{tanka_id}/feedback/{fingerprint}", status_code=status.HTTP_204_NO_CONTENT)
     def delete_feedback(tanka_id: str, fingerprint: str, user: str = Depends(current_user), s: Service = Depends(svc)):
         s.delete_feedback(user, tanka_id, fingerprint)
+
+    @r.get("/me/export")
+    def export_me(user: str = Depends(current_user), s: Service = Depends(svc)):
+        return JSONResponse(
+            s.export_user(user),
+            headers={"Content-Disposition": 'attachment; filename="suikocho-export.json"'},
+        )
+
+    @r.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+    def delete_me(request: Request, user: str = Depends(current_user), s: Service = Depends(svc)):
+        settings: Settings = request.app.state.settings
+        s.delete_account(user, lambda uid: delete_firebase_user(uid, settings))
 
     return r
 
@@ -235,6 +256,17 @@ def worker_router() -> APIRouter:
             # 再試行しても直らないので 200 を返して Cloud Tasks の再配信を止める
             return {"status": "not_found"}
         return {"status": run.status}
+
+    @r.post("/internal/purge-tanka", dependencies=[Depends(verify_tasks_caller)])
+    def purge(body: PurgeIn, s: Service = Depends(svc)):
+        # 失敗したら例外で 500 を返し、Cloud Tasks に再試行させる
+        s.purge_tanka(body.tankaId)
+        return {"status": "ok"}
+
+    @r.post("/internal/cleanup-deleted", dependencies=[Depends(verify_tasks_caller)])
+    def cleanup(s: Service = Depends(svc)):
+        """deletedAt が立ったまま残っている短歌を消し直す（Cloud Scheduler から定期的に呼ぶ）。"""
+        return {"purged": s.cleanup_deleted()}
 
     return r
 

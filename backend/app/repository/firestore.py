@@ -2,7 +2,8 @@
 
 - revisionNo はトランザクションで tankas の nextRevisionNo を進めて採番する
 - 推敲版の不変性はセキュリティルールで守る（firestore.rules）
-- checkRuns と feedback の書き込みはサービスアカウント（このサーバー）だけが行う
+- checkRuns と feedback の書き込み、およびすべての削除はサービスアカウント（このサーバー）だけが行う
+- 削除中（deletedAt あり）の短歌には書き込まない。ワーカーはトランザクション内で確かめてから書く
 """
 
 from __future__ import annotations
@@ -51,10 +52,11 @@ class FirestoreRepository:
         return self._tanka(tanka_id).collection("feedback")
 
     # --- tankas ---
-    def create_tanka(self, author_id: str, title: str | None) -> Tanka:
+    def create_tanka(self, author_id: str) -> Tanka:
         ref = self.db.collection("tankas").document()
         now = _now()
-        t = Tanka(id=ref.id, authorId=author_id, title=title, createdAt=now, updatedAt=now)
+        t = Tanka(id=ref.id, authorId=author_id, createdAt=now, updatedAt=now)
+        # deletedAt は null で明示しておく（一覧のクエリとセキュリティルールで deletedAt == null を使う）
         ref.set(_dump(t))
         return t
 
@@ -63,6 +65,19 @@ class FirestoreRepository:
         if not snap.exists:
             raise NotFound(tanka_id)
         return Tanka(id=snap.id, **snap.to_dict())
+
+    def list_tankas_by_author(self, author_id: str) -> list[Tanka]:
+        q = (
+            self.db.collection("tankas")
+            .where(filter=firestore.FieldFilter("authorId", "==", author_id))
+            .where(filter=firestore.FieldFilter("deletedAt", "==", None))
+            .order_by("updatedAt", direction=firestore.Query.DESCENDING)
+        )
+        return [Tanka(id=s.id, **s.to_dict()) for s in q.stream()]
+
+    @staticmethod
+    def _is_active(snap) -> bool:
+        return snap.exists and (snap.to_dict() or {}).get("deletedAt") is None
 
     # --- revisions ---
     def create_revision(self, tanka_id: str, data: dict[str, Any], reading_memory: dict[str, str]) -> Revision:
@@ -73,7 +88,7 @@ class FirestoreRepository:
         @firestore.transactional
         def run(tx) -> Revision:
             snap = tanka_ref.get(transaction=tx)
-            if not snap.exists:
+            if not self._is_active(snap):
                 raise NotFound(tanka_id)
             tanka = snap.to_dict()
             no = int(tanka.get("nextRevisionNo", 1))
@@ -83,6 +98,8 @@ class FirestoreRepository:
             update: dict[str, Any] = {
                 "nextRevisionNo": no + 1,
                 "currentRevisionId": rev_ref.id,
+                "latestBody": rev.bodyNormalized,
+                "latestRevisionNo": no,
                 "updatedAt": now,
             }
             for surface, reading in reading_memory.items():
@@ -103,14 +120,32 @@ class FirestoreRepository:
         return [Revision(id=s.id, **s.to_dict()) for s in q.stream()]
 
     # --- checkRuns ---
-    def add_check_run(self, tanka_id: str, revision_id: str, run: CheckRun) -> CheckRun:
-        ref = self._runs(tanka_id, revision_id).document(run.id) if run.id else self._runs(tanka_id, revision_id).document()
-        run = run.model_copy(update={"id": ref.id})
-        ref.set(_dump(run))
-        return run
+    def _write_if_active(self, tanka_id: str, ref, data: dict[str, Any]) -> bool:
+        """短歌が存在し削除中でないことをトランザクション内で確かめてから書く。
 
-    def update_check_run(self, tanka_id: str, revision_id: str, run: CheckRun) -> None:
-        self._runs(tanka_id, revision_id).document(run.id).set(_dump(run))
+        非同期チェックの実行中に短歌が削除されることがある。確かめずに書くと、
+        削除したはずの checkRuns が残ってしまう。
+        """
+        tanka_ref = self._tanka(tanka_id)
+        transaction = self.db.transaction()
+
+        @firestore.transactional
+        def run(tx) -> bool:
+            if not self._is_active(tanka_ref.get(transaction=tx)):
+                return False
+            tx.set(ref, data)
+            return True
+
+        return run(transaction)
+
+    def add_check_run_if_active(self, tanka_id: str, revision_id: str, run: CheckRun) -> CheckRun | None:
+        runs = self._runs(tanka_id, revision_id)
+        ref = runs.document(run.id) if run.id else runs.document()
+        run = run.model_copy(update={"id": ref.id})
+        return run if self._write_if_active(tanka_id, ref, _dump(run)) else None
+
+    def update_check_run_if_active(self, tanka_id: str, revision_id: str, run: CheckRun) -> bool:
+        return self._write_if_active(tanka_id, self._runs(tanka_id, revision_id).document(run.id), _dump(run))
 
     def list_check_runs(self, tanka_id: str, revision_id: str) -> list[CheckRun]:
         q = self._runs(tanka_id, revision_id).order_by("startedAt")
@@ -118,7 +153,9 @@ class FirestoreRepository:
 
     # --- feedback ---
     def set_feedback(self, tanka_id: str, feedback: Feedback) -> None:
-        self._feedback(tanka_id).document(feedback.fingerprint).set(feedback.model_dump(mode="python"))
+        ref = self._feedback(tanka_id).document(feedback.fingerprint)
+        if not self._write_if_active(tanka_id, ref, feedback.model_dump(mode="python")):
+            raise NotFound(tanka_id)
 
     def delete_feedback(self, tanka_id: str, fingerprint: str) -> None:
         self._feedback(tanka_id).document(fingerprint).delete()
@@ -141,3 +178,27 @@ class FirestoreRepository:
             return count
 
         return run(transaction)
+
+    # --- 削除 ---
+    def mark_deleted(self, tanka_id: str, at: datetime) -> None:
+        ref = self._tanka(tanka_id)
+        transaction = self.db.transaction()
+
+        @firestore.transactional
+        def run(tx) -> None:
+            snap = ref.get(transaction=tx)
+            if snap.exists and (snap.to_dict() or {}).get("deletedAt") is None:
+                tx.update(ref, {"deletedAt": at})
+
+        run(transaction)
+
+    def purge_tanka(self, tanka_id: str) -> None:
+        # Admin SDK（サーバー用クライアント）の再帰削除で、サブコレクションを含めて消す
+        self.db.recursive_delete(self._tanka(tanka_id))
+
+    def list_deleted_tankas(self, before: datetime) -> list[str]:
+        q = self.db.collection("tankas").where(filter=firestore.FieldFilter("deletedAt", "<", before))
+        return [s.id for s in q.stream()]
+
+    def delete_user_data(self, user_id: str) -> None:
+        self.db.collection("users").document(user_id).delete()

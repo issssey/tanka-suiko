@@ -66,7 +66,7 @@ def main() -> int:
     svc.enqueuer = SyncEnqueuer(lambda p: svc.run_async_check(p["tankaId"], p["revisionId"], p["runId"]))
 
     user = "smoke"
-    tanka = svc.create_tanka(user, "駅のホーム")
+    tanka = svc.create_tanka(user)
     parent = None
     print(f"model={args.model} effort={args.effort or '(既定)'}\n")
     for body, note in DRAFTS:

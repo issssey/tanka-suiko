@@ -68,3 +68,31 @@ def verify_tasks_caller(authorization: str | None = Header(default=None), settin
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "トークンが無効です") from e
     if settings.tasks_service_account and claims.get("email") != settings.tasks_service_account:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "呼び出し元が許可されていません")
+
+
+def delete_firebase_user(uid: str, settings: Settings) -> None:
+    """Firebase Authentication のユーザーを消す（アカウント削除）。
+
+    Identity Toolkit の REST API をサービスアカウントの認証情報で呼ぶ。
+    エミュレータでは Bearer owner で呼べる。dev モードでエミュレータもなければ何もしない。
+    """
+    import requests
+
+    project = settings.firebase_project_id
+    emulator = os.environ.get("FIREBASE_AUTH_EMULATOR_HOST")
+    if emulator:
+        url = f"http://{emulator}/identitytoolkit.googleapis.com/v1/projects/{project}/accounts:delete"
+        headers = {"Authorization": "Bearer owner"}
+    elif settings.auth_mode == "dev":
+        return
+    else:
+        import google.auth
+        from google.auth.transport.requests import Request
+
+        creds, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+        creds.refresh(Request())
+        url = f"https://identitytoolkit.googleapis.com/v1/projects/{project}/accounts:delete"
+        headers = {"Authorization": f"Bearer {creds.token}"}
+    res = requests.post(url, json={"localId": uid}, headers=headers, timeout=10)
+    if res.status_code >= 400 and "USER_NOT_FOUND" not in res.text:
+        raise RuntimeError(f"Firebase のユーザーを削除できませんでした（{res.status_code}）")
