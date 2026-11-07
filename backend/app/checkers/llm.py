@@ -262,13 +262,23 @@ class AnthropicJSONClient:
             messages=[{"role": "user", "content": user}],
             output_config=output_config,
         )
-        if self.provider == "anthropic" and supports_server_fallback(self.model):
-            # 安全分類器による拒否のとき、サーバー側で別モデルに切り替えて再実行する
-            response = self._client.beta.messages.create(
-                betas=["server-side-fallback-2026-07-01"], fallbacks="default", **kwargs
-            )
-        else:
-            response = self._client.messages.create(**kwargs)
+        import anthropic
+
+        try:
+            if self.provider == "anthropic" and supports_server_fallback(self.model):
+                # 安全分類器による拒否のとき、サーバー側で別モデルに切り替えて再実行する
+                response = self._client.beta.messages.create(
+                    betas=["server-side-fallback-2026-07-01"], fallbacks="default", **kwargs
+                )
+            else:
+                response = self._client.messages.create(**kwargs)
+        except anthropic.RateLimitError:
+            raise  # 再試行で直りうる（Cloud Tasks が再配信する）
+        except anthropic.APIStatusError as e:
+            if e.status_code >= 500:
+                raise
+            # 認証・リクエストの誤りは再試行しても直らないので、失敗として記録する
+            raise LLMError(f"LLM APIエラー（{e.status_code}）") from e
         if response.stop_reason == "refusal":
             raise LLMError("LLMが判定を拒否しました")
         if response.stop_reason == "max_tokens":
