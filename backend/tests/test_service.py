@@ -207,3 +207,28 @@ def test_server_fallback_only_for_supported_models():
     assert supports_server_fallback("claude-opus-5-5")
     assert supports_server_fallback("claude-sonnet-5-5")
     assert not supports_server_fallback("claude-haiku-5-5")
+
+
+def test_word_fingerprint_is_stable_when_llm_span_changes(service, fake_llm):
+    """LLMが選ぶ範囲が版で変わっても（「ひとり寂しく」→「寂しくて」）、同じ指摘として追跡する。"""
+    body1 = "夕暮れの駅のホームの片隅で頬を伝う涙ひとり寂しく"
+    body2 = "夕暮れの駅のホームで寂しくて君からの文字何度も読み返す"
+    t1 = preprocess(body1).tokens
+    t2 = preprocess(body2).tokens
+    s1 = next(x.index for x in t1 if x.surface == "ひとり")
+    e1 = next(x.index for x in t1 if x.surface == "寂しく")
+    s2 = next(x.index for x in t2 if x.surface == "寂しく")
+    namida = next(x.index for x in t1 if x.surface == "涙")
+    fake_llm.responder = llm_returning([
+        [{"code": "B1", "tokenStart": s1, "tokenEnd": e1, "confidence": 0.85, "reason": "感情語"},
+         {"code": "B2", "tokenStart": namida - 3, "tokenEnd": namida, "confidence": 0.9, "reason": "常套句"}],
+        [{"code": "B1", "tokenStart": s2, "tokenEnd": s2 + 1, "confidence": 0.9, "reason": "感情語"}],  # 「寂しくて」
+    ])
+    t = service.create_tanka(USER, None)
+    r1 = save(service, t.id, body1)
+    r2 = save(service, t.id, body2, parent=r1.revision.id)
+    run1 = [r for r in service.repo.list_check_runs(t.id, r1.revision.id) if r.phase == "async"][0]
+    run2 = [r for r in service.repo.list_check_runs(t.id, r2.revision.id) if r.phase == "async"][0]
+    assert {f.fingerprint for f in run1.findings} == {"B1:寂しい", "B2:涙"}
+    assert {f.fingerprint: f.transition for f in run2.findings} == {"B1:寂しい": "continued"}
+    assert run2.resolvedFingerprints == ["B2:涙"]

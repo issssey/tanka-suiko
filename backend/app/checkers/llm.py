@@ -17,7 +17,7 @@ from typing import Any, Protocol
 
 import yaml
 
-from ..models import Finding, Revision
+from ..models import Finding, Revision, Token
 from ..patterns import Pattern
 from .base import CheckContext, RawFinding, seg_label
 
@@ -174,6 +174,23 @@ class LLMChecker:
         return validate_output(data, ctx, set(codes))
 
 
+# 語ベースの fingerprint の中心にする品詞（自立語）
+_CONTENT_POS = {"名詞", "代名詞", "動詞", "形容詞", "形状詞", "副詞", "連体詞", "感動詞"}
+
+
+def head_lemma(tokens: list[Token]) -> str:
+    """範囲の中心になる語（最後の自立語）の原形。
+
+    LLMが選ぶ範囲は版によって伸び縮みする（「ひとり寂しく」と「寂しくて」など）ので、
+    範囲全体をつなげると同じ指摘でも fingerprint が変わってしまう。日本語は後ろの語が
+    中心になるため、最後の自立語の原形を使う。自立語がなければ範囲全体をつなげる。
+    """
+    for t in reversed(tokens):
+        if t.pos and t.pos[0] in _CONTENT_POS:
+            return t.lemma
+    return "".join(t.lemma for t in tokens)
+
+
 def validate_output(data: Any, ctx: CheckContext, allowed: set[str]) -> LLMResult:
     rev = ctx.revision
     n = len(rev.tokens)
@@ -209,7 +226,7 @@ def validate_output(data: Any, ctx: CheckContext, allowed: set[str]) -> LLMResul
                     segmentNo=toks[0].segmentNo,
                     span=span,
                     matchedText=rev.bodyNormalized[span[0] : span[1]],
-                    lemma="".join(t.lemma for t in toks),
+                    lemma=head_lemma(toks),
                     message=reason,
                     evidence={"tokenStart": start, "tokenEnd": end},
                 )
