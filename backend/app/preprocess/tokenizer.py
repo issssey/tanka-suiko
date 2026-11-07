@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Protocol
@@ -42,12 +43,22 @@ class SudachiTokenizer:
         from sudachipy import Dictionary, SplitMode
 
         self._dict = Dictionary(dict="core")
-        self._tok = self._dict.tokenizer() if hasattr(self._dict, "tokenizer") else self._dict.create()
         self._mode = SplitMode.C
+        # Sudachi の Tokenizer は同時に使えないので、スレッドごとに作る
+        # （FastAPI は同期のエンドポイントをスレッドプールで実行する）
+        self._local = threading.local()
+        self._lookup_lock = threading.Lock()
+
+    def _tokenizer(self):
+        tok = getattr(self._local, "tok", None)
+        if tok is None:
+            tok = self._dict.tokenizer() if hasattr(self._dict, "tokenizer") else self._dict.create()
+            self._local.tok = tok
+        return tok
 
     def tokenize(self, text: str) -> list[RawToken]:
         tokens = []
-        for m in self._tok.tokenize(text, self._mode):
+        for m in self._tokenizer().tokenize(text, self._mode):
             surface = m.surface()
             reading = m.reading_form()
             oov = m.is_oov()
@@ -69,7 +80,8 @@ class SudachiTokenizer:
         if not has_kanji(surface):
             return []
         try:
-            entries = self._dict.lookup(surface)
+            with self._lookup_lock:
+                entries = list(self._dict.lookup(surface))
         except Exception:  # pragma: no cover - 古いsudachipy
             return []
         seen: list[str] = []

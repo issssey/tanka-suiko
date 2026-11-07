@@ -1,0 +1,116 @@
+// Firestore のドキュメントと API の入出力の型（backend/app/models.py と対応）
+
+export type Severity = "high" | "medium" | "low";
+export type Transition = "new" | "continued";
+export type RunStatus = "queued" | "running" | "done" | "skipped" | "failed" | "limited";
+export type Style = "colloquial" | "literary";
+export type Orthography = "modern" | "historical";
+
+export interface Segment {
+  no: number;
+  text: string;
+  reading: string;
+  mora: number;
+  expected: number;
+  span: [number, number];
+}
+
+export interface Token {
+  index: number;
+  surface: string;
+  lemma: string;
+  pos: string[];
+  reading: string;
+  mora: number;
+  span: [number, number];
+  segmentNo: number | null;
+  oov: boolean;
+}
+
+export interface Finding {
+  code: string;
+  severity: Severity;
+  confidence: number;
+  segmentNo: number | null;
+  span: [number, number] | null;
+  matchedText: string | null;
+  message: string;
+  evidence: Record<string, unknown>;
+  fingerprint: string;
+  transition: Transition;
+}
+
+export interface Tanka {
+  id: string;
+  authorId: string;
+  title: string | null;
+  currentRevisionId: string | null;
+  nextRevisionNo: number;
+  readingMemory: Record<string, string>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Revision {
+  id: string;
+  revisionNo: number;
+  parentRevisionId: string | null;
+  body: string;
+  bodyNormalized: string;
+  reading: string;
+  orthography: Orthography;
+  style: Style;
+  segments: Segment[];
+  tokens: Token[];
+  note: string | null;
+  createdAt: Date;
+}
+
+export interface CheckRun {
+  id: string;
+  phase: "sync" | "async";
+  baseRevisionId: string | null;
+  status: RunStatus;
+  trigger: "save" | "recheck";
+  findings: Finding[];
+  resolvedFingerprints: string[];
+  error: string | null;
+  startedAt: Date;
+  finishedAt: Date | null;
+}
+
+export interface Feedback {
+  fingerprint: string;
+  status: "intentional" | "false_positive";
+  comment: string | null;
+  createdAt: Date;
+}
+
+export interface ReadingCandidate {
+  tokenIndex: number;
+  surface: string;
+  readings: string[];
+  selected: string;
+}
+
+export interface PreprocessResponse {
+  bodyNormalized: string;
+  hints: number[];
+  style: Style;
+  orthography: Orthography;
+  detectedStyle: Style;
+  detectedOrthography: Orthography;
+  segments: Segment[];
+  tokens: Token[];
+  candidates: ReadingCandidate[];
+  unknownWords: { tokenIndex: number; surface: string; reading: string }[];
+  totalMora: number;
+}
+
+export interface SaveResponse {
+  revisionId: string;
+  revisionNo: number;
+  syncRun: { runId: string; findings: Finding[]; resolvedFingerprints: string[] };
+  asyncRunId: string;
+  asyncRunStatus: RunStatus;
+}

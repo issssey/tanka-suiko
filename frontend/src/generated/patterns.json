@@ -1,0 +1,282 @@
+{
+  "version": "2026-11-07.1",
+  "categories": {
+    "A": "定型・リズム",
+    "B": "語彙・表現",
+    "C": "文法・文体",
+    "D": "構成・内容",
+    "E": "推敲の経過"
+  },
+  "patterns": [
+    {
+      "code": "A1",
+      "name": "字余り・字足らず",
+      "category": "A",
+      "phase": "sync",
+      "severity": "medium",
+      "severityNote": "字足らずは高、字余りは中",
+      "definition": "句のモーラ数が五七五七七の定型と合わない。",
+      "requiresParent": false
+    },
+    {
+      "code": "A2",
+      "name": "字数合わせの埋め草",
+      "category": "A",
+      "phase": "async",
+      "severity": "medium",
+      "severityNote": null,
+      "definition": "意味の上では不要な語を、音数を合わせるためだけに入れている。",
+      "requiresParent": false
+    },
+    {
+      "code": "A3",
+      "name": "句切れが多い・不明確",
+      "category": "A",
+      "phase": "async",
+      "severity": "low",
+      "severityNote": null,
+      "definition": "一首の中に句切れが三つ以上ある、またはどこで切れるかが読み取りにくい。",
+      "requiresParent": false
+    },
+    {
+      "code": "A4",
+      "name": "句またがり・句割れ",
+      "category": "A",
+      "phase": "sync",
+      "severity": "low",
+      "severityNote": null,
+      "definition": "一語が二つの句にまたがっている（句またがり）、または句の途中で文が切れている（句割れ）。",
+      "requiresParent": false
+    },
+    {
+      "code": "B1",
+      "name": "感情語の直接表出",
+      "category": "B",
+      "phase": "async",
+      "severity": "medium",
+      "severityNote": null,
+      "definition": "「寂しい」「悲しい」「嬉しい」など、感情そのものを表す語で感情を言っている。",
+      "requiresParent": false
+    },
+    {
+      "code": "B2",
+      "name": "常套句",
+      "category": "B",
+      "phase": "async",
+      "severity": "medium",
+      "severityNote": null,
+      "definition": "使い古された決まり文句をそのまま使っている。",
+      "requiresParent": false
+    },
+    {
+      "code": "B3",
+      "name": "月並みな比喩・「〜のように」の多用",
+      "category": "B",
+      "phase": "async",
+      "severity": "medium",
+      "severityNote": null,
+      "definition": "よく見る比喩をそのまま使っている、または「〜のように」「〜みたいに」が重なっている。",
+      "requiresParent": false
+    },
+    {
+      "code": "B4",
+      "name": "抽象語の多用",
+      "category": "B",
+      "phase": "async",
+      "severity": "low",
+      "severityNote": null,
+      "definition": "「愛」「希望」「未来」「永遠」「心」など、具体物を伴わない抽象語に頼っている。",
+      "requiresParent": false
+    },
+    {
+      "code": "B5",
+      "name": "既成のオノマトペ",
+      "category": "B",
+      "phase": "async",
+      "severity": "low",
+      "severityNote": null,
+      "definition": "「キラキラ」「ドキドキ」「しとしと」など、辞書的で使い古されたオノマトペを使っている。",
+      "requiresParent": false
+    },
+    {
+      "code": "B6",
+      "name": "意味の重複",
+      "category": "B",
+      "phase": "async",
+      "severity": "medium",
+      "severityNote": null,
+      "definition": "同じ意味を別の語で繰り返している（重言を含む）。",
+      "requiresParent": false
+    },
+    {
+      "code": "B7",
+      "name": "記号の多用",
+      "category": "B",
+      "phase": "sync",
+      "severity": "low",
+      "severityNote": null,
+      "definition": "「！」「？」「…」「――」などの記号を多く使っている。",
+      "requiresParent": false
+    },
+    {
+      "code": "C1",
+      "name": "文語と口語の混在",
+      "category": "C",
+      "phase": "async",
+      "severity": "medium",
+      "severityNote": null,
+      "definition": "文語の助動詞・活用と口語の助動詞・活用が一首の中で混ざっている。",
+      "requiresParent": false
+    },
+    {
+      "code": "C2",
+      "name": "旧仮名と新仮名の混在",
+      "category": "C",
+      "phase": "sync",
+      "severity": "high",
+      "severityNote": null,
+      "definition": "歴史的仮名遣いと現代仮名遣いが一首の中で混ざっている。",
+      "requiresParent": false
+    },
+    {
+      "code": "C3",
+      "name": "「の」の連続・同じ助詞の反復",
+      "category": "C",
+      "phase": "sync",
+      "severity": "low",
+      "severityNote": null,
+      "definition": "格助詞「の」が短い間に三つ以上続く、または同じ助詞が一首に何度も出る。",
+      "requiresParent": false
+    },
+    {
+      "code": "C4",
+      "name": "時制の揺れ",
+      "category": "C",
+      "phase": "async",
+      "severity": "medium",
+      "severityNote": null,
+      "definition": "過去と現在の時制が理由なく揺れている。",
+      "requiresParent": false
+    },
+    {
+      "code": "C5",
+      "name": "不要な一人称主語",
+      "category": "C",
+      "phase": "sync",
+      "severity": "low",
+      "severityNote": null,
+      "definition": "「私」「僕」「われ」など一人称の主語を書いている。",
+      "requiresParent": false
+    },
+    {
+      "code": "D1",
+      "name": "因果の説明",
+      "category": "D",
+      "phase": "async",
+      "severity": "medium",
+      "severityNote": null,
+      "definition": "「〜だから」「〜ので」「〜ため」など、理由と結果を説明している。",
+      "requiresParent": false
+    },
+    {
+      "code": "D2",
+      "name": "結句での種明かし・教訓",
+      "category": "D",
+      "phase": "async",
+      "severity": "medium",
+      "severityNote": null,
+      "definition": "結句（五句目）で、上の句の意味をまとめたり、教訓や感想を述べたりしている。",
+      "requiresParent": false
+    },
+    {
+      "code": "D3",
+      "name": "素材の詰め込みすぎ",
+      "category": "D",
+      "phase": "async",
+      "severity": "low",
+      "severityNote": null,
+      "definition": "一首に場所・時間・人物・行為・感情など素材が多く、焦点がぼやけている。",
+      "requiresParent": false
+    },
+    {
+      "code": "D4",
+      "name": "取り合わせが近すぎる",
+      "category": "D",
+      "phase": "async",
+      "severity": "low",
+      "severityNote": null,
+      "definition": "組み合わせた二つの素材が近すぎて、互いに響き合う距離がない。",
+      "requiresParent": false
+    },
+    {
+      "code": "D5",
+      "name": "視点・場面の分裂",
+      "category": "D",
+      "phase": "async",
+      "severity": "medium",
+      "severityNote": null,
+      "definition": "一首の中で視点（誰が見ているか）や場面が途中で切り替わり、まとまらない。",
+      "requiresParent": false
+    },
+    {
+      "code": "D6",
+      "name": "安易な擬人化",
+      "category": "D",
+      "phase": "async",
+      "severity": "low",
+      "severityNote": null,
+      "definition": "「花が笑う」「風がささやく」など、よくある擬人化をそのまま使っている。",
+      "requiresParent": false
+    },
+    {
+      "code": "E1",
+      "name": "具体から抽象への後退",
+      "category": "E",
+      "phase": "async",
+      "severity": "medium",
+      "severityNote": null,
+      "definition": "親の版にあった具体的な描写が、推敲で抽象的な語や説明に置き換わった。",
+      "requiresParent": true
+    },
+    {
+      "code": "E2",
+      "name": "説明語の増加",
+      "category": "E",
+      "phase": "async",
+      "severity": "medium",
+      "severityNote": null,
+      "definition": "推敲で、説明的な語（理由・感情・まとめ）が増えた。",
+      "requiresParent": true
+    },
+    {
+      "code": "E3",
+      "name": "同じ箇所の行ったり来たり",
+      "category": "E",
+      "phase": "async",
+      "severity": "low",
+      "severityNote": null,
+      "definition": "一度消した表現が、後の版で同じ句に戻ってきた。",
+      "requiresParent": true
+    },
+    {
+      "code": "E4",
+      "name": "初稿の核の喪失",
+      "category": "E",
+      "phase": "async",
+      "severity": "medium",
+      "severityNote": null,
+      "definition": "初稿の中心にあった素材や発見が、推敲の過程でなくなった。",
+      "requiresParent": true
+    },
+    {
+      "code": "E5",
+      "name": "定型合わせで表現が弱化",
+      "category": "E",
+      "phase": "async",
+      "severity": "medium",
+      "severityNote": null,
+      "definition": "字余り・字足らずを直すために、表現が弱くなった。",
+      "requiresParent": true
+    }
+  ]
+}
