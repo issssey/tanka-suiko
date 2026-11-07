@@ -32,18 +32,37 @@ gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
 docker build -t "$IMAGE" "$ROOT/backend"
 docker push "$IMAGE"
 
-COMMON="REPOSITORY=firestore,AUTH_MODE=firebase,FIREBASE_PROJECT_ID=$PROJECT,TASKS_MODE=cloudtasks"
-COMMON+=",CLOUD_TASKS_QUEUE=$QUEUE,TASKS_SERVICE_ACCOUNT=$INVOKER_SA,CORS_ORIGINS=$ORIGINS"
-COMMON+=",LLM_PROVIDER=$LLM_PROVIDER,LLM_MODEL=${LLM_MODEL:-claude-haiku-5-5},VERTEX_PROJECT=$PROJECT"
-COMMON+=",ASYNC_DAILY_LIMIT=${ASYNC_DAILY_LIMIT:-100},WORKER_URL=$WORKER_URL,WORKER_AUDIENCE=$WORKER_URL"
-[ -n "${LLM_EFFORT:-}" ] && COMMON+=",LLM_EFFORT=$LLM_EFFORT"
+# 環境変数はYAMLのファイルで渡す（--set-env-vars はカンマで区切るので、CORS_ORIGINS のようにカンマを含む値を渡せない）
+ENV_DIR="$(mktemp -d)"
+trap 'rm -rf "$ENV_DIR"' EXIT
+write_env() {
+  local role="$1" file="$ENV_DIR/$1.yaml"
+  {
+    printf 'APP_ROLE: "%s"\n' "$role"
+    printf 'REPOSITORY: "firestore"\n'
+    printf 'AUTH_MODE: "firebase"\n'
+    printf 'FIREBASE_PROJECT_ID: "%s"\n' "$PROJECT"
+    printf 'TASKS_MODE: "cloudtasks"\n'
+    printf 'CLOUD_TASKS_QUEUE: "%s"\n' "$QUEUE"
+    printf 'TASKS_SERVICE_ACCOUNT: "%s"\n' "$INVOKER_SA"
+    printf 'WORKER_URL: "%s"\n' "$WORKER_URL"
+    printf 'WORKER_AUDIENCE: "%s"\n' "$WORKER_URL"
+    printf 'CORS_ORIGINS: "%s"\n' "$ORIGINS"
+    printf 'LLM_PROVIDER: "%s"\n' "$LLM_PROVIDER"
+    printf 'LLM_MODEL: "%s"\n' "${LLM_MODEL:-claude-haiku-5-5}"
+    printf 'VERTEX_PROJECT: "%s"\n' "$PROJECT"
+    printf 'ASYNC_DAILY_LIMIT: "%s"\n' "${ASYNC_DAILY_LIMIT:-100}"
+    if [ -n "${LLM_EFFORT:-}" ]; then printf 'LLM_EFFORT: "%s"\n' "$LLM_EFFORT"; fi
+  } >"$file"
+  echo "$file"
+}
 
 say "ワーカーを展開する（公開しない。Cloud Tasks と Scheduler からだけ呼ぶ）"
 WORKER_SECRETS=()
 [ "$LLM_PROVIDER" = "anthropic" ] && WORKER_SECRETS=(--set-secrets "ANTHROPIC_API_KEY=anthropic-api-key:latest")
 gcloud run deploy tanka-worker --project "$PROJECT" --region "$REGION" --image "$IMAGE" \
   --service-account "$WORKER_SA" --no-allow-unauthenticated \
-  --set-env-vars "APP_ROLE=worker,$COMMON" "${WORKER_SECRETS[@]}" \
+  --env-vars-file "$(write_env worker)" "${WORKER_SECRETS[@]}" \
   --memory 1Gi --cpu 1 --min-instances 0 --max-instances 5 --concurrency 4 --timeout 120 --quiet
 ACTUAL="$(gcloud run services describe tanka-worker --project "$PROJECT" --region "$REGION" --format='value(status.url)')"
 if [ "$ACTUAL" != "$WORKER_URL" ]; then
@@ -56,7 +75,7 @@ gcloud run services add-iam-policy-binding tanka-worker --project "$PROJECT" --r
 say "APIを展開する（ブラウザから呼ぶので公開。認証は Firebase の IDトークン）"
 gcloud run deploy tanka-api --project "$PROJECT" --region "$REGION" --image "$IMAGE" \
   --service-account "$API_SA" --allow-unauthenticated \
-  --set-env-vars "APP_ROLE=api,$COMMON" \
+  --env-vars-file "$(write_env api)" \
   --memory 1Gi --cpu 1 --min-instances 0 --max-instances 10 --timeout 30 --quiet
 API_URL="https://tanka-api-$PROJECT_NUMBER.$REGION.run.app"
 
