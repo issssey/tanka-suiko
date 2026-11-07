@@ -32,7 +32,7 @@ class Settings:
     async_daily_limit: int = 100
     # LLM: anthropic / vertex / none
     llm_provider: str = "none"
-    llm_model: str = "claude-opus-5-5"
+    llm_model: str = "claude-haiku-5-5"
     llm_effort: str | None = None
     vertex_project: str | None = None
     vertex_region: str = "global"
@@ -57,7 +57,7 @@ def get_settings() -> Settings:
         async_delay_seconds=int(_env("ASYNC_DELAY_SECONDS", "5")),
         async_daily_limit=int(_env("ASYNC_DAILY_LIMIT", "100")),
         llm_provider=_env("LLM_PROVIDER", "none"),
-        llm_model=_env("LLM_MODEL", "claude-opus-5-5"),
+        llm_model=_env("LLM_MODEL", "claude-haiku-5-5"),
         llm_effort=_env("LLM_EFFORT"),
         vertex_project=_env("VERTEX_PROJECT") or _env("GOOGLE_CLOUD_PROJECT"),
         vertex_region=_env("VERTEX_REGION", "global"),

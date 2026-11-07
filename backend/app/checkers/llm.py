@@ -222,6 +222,14 @@ def validate_output(data: Any, ctx: CheckContext, allowed: set[str]) -> LLMResul
 # --- クライアント -----------------------------------------------------------
 
 
+# サーバー側の fallbacks="default" を受け付けるモデル（Haiku 5.5 などは非対応）
+_FALLBACK_MODELS = ("claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5")
+
+
+def supports_server_fallback(model: str) -> bool:
+    return model in _FALLBACK_MODELS
+
+
 class AnthropicJSONClient:
     """Claude（Anthropic API または Vertex AI）を構造化出力で呼ぶ。
 
@@ -254,7 +262,7 @@ class AnthropicJSONClient:
             messages=[{"role": "user", "content": user}],
             output_config=output_config,
         )
-        if self.provider == "anthropic":
+        if self.provider == "anthropic" and supports_server_fallback(self.model):
             # 安全分類器による拒否のとき、サーバー側で別モデルに切り替えて再実行する
             response = self._client.beta.messages.create(
                 betas=["server-side-fallback-2026-07-01"], fallbacks="default", **kwargs

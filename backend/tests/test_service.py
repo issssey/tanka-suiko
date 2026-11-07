@@ -199,3 +199,11 @@ def test_output_schema_is_strict():
 def test_fake_llm_records_calls():
     f = FakeLLM()
     assert f.complete_json([], "x", {}) == {"findings": []}
+
+
+def test_server_fallback_only_for_supported_models():
+    from app.checkers.llm import supports_server_fallback
+
+    assert supports_server_fallback("claude-opus-5-5")
+    assert supports_server_fallback("claude-sonnet-5-5")
+    assert not supports_server_fallback("claude-haiku-5-5")
