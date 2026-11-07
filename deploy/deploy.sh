@@ -70,7 +70,7 @@ else
   gcloud scheduler jobs create http tanka-cleanup --project "$PROJECT" "${SCHED[@]}" --quiet >/dev/null
 fi
 
-say "画面を作る（API: $API_URL）"
+say "画面を作る（API: ${API_URL}）"
 (
   cd "$ROOT/frontend"
   npm ci --legacy-peer-deps
@@ -90,7 +90,7 @@ curl -fsS "$API_URL/healthz" && echo
 
 cat <<EOF
 
-展開しました（$PROJECT）
+展開しました（${PROJECT}）
   画面: https://$PROJECT.web.app
   API:  $API_URL
 EOF

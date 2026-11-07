@@ -115,9 +115,9 @@ gcloud iam service-accounts add-iam-policy-binding "$DEPLOYER_SA" --role=roles/i
 cat <<EOF
 
 ==================================================================
-初期設定が終わりました（$ENV_NAME / $PROJECT_ID / 展開するブランチ: $BRANCH）
+初期設定が終わりました（$ENV_NAME / $PROJECT_ID / 展開するブランチ: ${BRANCH}）
 
-GitHub のリポジトリの Settings > Environments に「$ENV_NAME」を作り、
+GitHub のリポジトリの Settings > Environments に「${ENV_NAME}」を作り、
 次の Variables を登録してください（どれも秘密情報ではありません）。
 
   GCP_PROJECT_ID        $PROJECT_ID
