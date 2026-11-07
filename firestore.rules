@@ -1,0 +1,38 @@
+rules_version = '2';
+
+// 書き込みはすべてCloud RunのAPI・ワーカー（サービスアカウント。ルールの対象外）が行う。
+// クライアントは自分の短歌の読み取りだけができる。
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function ownsTanka(tankaId) {
+      return signedIn() && get(/databases/$(database)/documents/tankas/$(tankaId)).data.authorId == request.auth.uid;
+    }
+
+    match /tankas/{tankaId} {
+      allow read: if signedIn() && resource.data.authorId == request.auth.uid;
+      allow write: if false;
+
+      // 推敲版は保存後に変更しない（createのみ。クライアントからは作らない）
+      match /revisions/{revisionId} {
+        allow read: if ownsTanka(tankaId);
+        allow create, update, delete: if false;
+
+        match /checkRuns/{runId} {
+          allow read: if ownsTanka(tankaId);
+          allow write: if false;
+        }
+      }
+
+      match /feedback/{fingerprint} {
+        allow read: if ownsTanka(tankaId);
+        allow write: if false;
+      }
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+  }
+}

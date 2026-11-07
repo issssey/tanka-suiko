@@ -1,0 +1,11 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.7
+pyyaml>=6.0
+sudachipy>=0.6.8
+sudachidict_core>=20240409
+anthropic[vertex]>=2.6
+google-cloud-firestore>=2.16
+google-cloud-tasks>=2.16
+google-auth>=2.29
+requests>=2.31
