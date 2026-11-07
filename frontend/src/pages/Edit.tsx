@@ -51,12 +51,12 @@ export default function EditPage() {
         )}
         <div className="field">
           <label htmlFor="body">本文</label>
-          <textarea id="body" className="textarea serif" value={body ?? ""} onChange={(e) => setBody(e.target.value)} />
+          <textarea id="body" maxLength={80} className="textarea serif" value={body ?? ""} onChange={(e) => setBody(e.target.value)} />
           <p className="hint">スペースや改行で句の区切りを示せます（なくても自動で分けます）</p>
         </div>
         <div className="field">
           <label htmlFor="note">推敲メモ <span style={{ fontWeight: 400 }}>（任意）</span></label>
-          <input id="note" className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="例：涙の描写をやめて、行動で見せる" />
+          <input id="note" maxLength={200} className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="例：涙の描写をやめて、行動で見せる" />
         </div>
       </div>
       <div className="footer-bar">

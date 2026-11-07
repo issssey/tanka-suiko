@@ -127,6 +127,7 @@ export default function ReadingPage() {
                         <span className="sr-only">{segLabel(s.no)}の読み</span>
                         <input
                           type="text"
+                          maxLength={40}
                           value={reading}
                           onChange={(e) => setManual((m) => ({ ...m, [segKey(s.no, s.text)]: e.target.value }))}
                           style={{ border: "none", borderBottom: "1px dashed var(--neutral-line)", padding: "2px 0", background: "transparent", fontSize: 13, color: "var(--muted)", fontFamily: "var(--sans)" }}

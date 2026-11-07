@@ -6,7 +6,7 @@
 #   FIREBASE_API_KEY, FIREBASE_APP_ID（Firebase コンソールのウェブアプリの設定値）
 #   LLM_PROVIDER（anthropic / vertex / none）
 # 任意：
-#   LLM_MODEL, LLM_EFFORT, ASYNC_DAILY_LIMIT, EXTRA_CORS_ORIGINS（独自ドメインなど。カンマ区切り）
+#   LLM_MODEL, LLM_EFFORT, ASYNC_DAILY_LIMIT, ASYNC_GLOBAL_DAILY_LIMIT, EXTRA_CORS_ORIGINS（独自ドメインなど。カンマ区切り）
 #   IMAGE_TAG（既定は git のコミット）
 set -euo pipefail
 
@@ -52,6 +52,7 @@ write_env() {
     printf 'LLM_MODEL: "%s"\n' "${LLM_MODEL:-claude-sonnet-5-5}"
     printf 'VERTEX_PROJECT: "%s"\n' "$PROJECT"
     printf 'ASYNC_DAILY_LIMIT: "%s"\n' "${ASYNC_DAILY_LIMIT:-100}"
+    printf 'ASYNC_GLOBAL_DAILY_LIMIT: "%s"\n' "${ASYNC_GLOBAL_DAILY_LIMIT:-3000}"
     if [ -n "${LLM_EFFORT:-}" ]; then printf 'LLM_EFFORT: "%s"\n' "$LLM_EFFORT"; fi
   } >"$file"
   echo "$file"

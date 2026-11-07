@@ -82,6 +82,7 @@ VITE_USE_EMULATORS=true VITE_FIREBASE_PROJECT_ID=demo-tanka-suiko npm run dev
 | `WORKER_AUDIENCE` | `WORKER_URL` | OIDC トークンの audience |
 | `ASYNC_DELAY_SECONDS` | `5` | 連続保存のとき最後の版だけをLLMにかけるための遅延 |
 | `ASYNC_DAILY_LIMIT` | `100` | 作者ごとの1日の非同期チェック回数 |
+| `ASYNC_GLOBAL_DAILY_LIMIT` | `3000` | サービス全体の1日の非同期チェック回数 |
 | `LLM_PROVIDER` | `none` | `anthropic` / `vertex` / `none` |
 | `LLM_MODEL` | `claude-sonnet-5-5` | |
 | `LLM_EFFORT` | — | `low` / `medium` / `high`（未指定はモデルの既定） |

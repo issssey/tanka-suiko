@@ -54,6 +54,7 @@ jobs:
           LLM_MODEL: ${{ vars.LLM_MODEL }}
           LLM_EFFORT: ${{ vars.LLM_EFFORT }}
           ASYNC_DAILY_LIMIT: ${{ vars.ASYNC_DAILY_LIMIT }}
+          ASYNC_GLOBAL_DAILY_LIMIT: ${{ vars.ASYNC_GLOBAL_DAILY_LIMIT }}
           EXTRA_CORS_ORIGINS: ${{ vars.EXTRA_CORS_ORIGINS }}
           IMAGE_TAG: ${{ github.sha }}
         run: deploy/deploy.sh

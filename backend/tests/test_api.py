@@ -92,3 +92,25 @@ def test_health_endpoints(service):
     c = client(service)
     assert c.get("/health").json()["ok"] is True
     assert c.get("/healthz").status_code == 200
+
+
+def test_input_limits_block_oversized_prompts(service):
+    """読みや読みの選択を長大にして、LLMへの入力（費用）を膨らませられないこと。"""
+    c = client(service)
+    tid = c.post("/tankas", headers=AUTH).json()["tankaId"]
+    body = "夕暮れの 駅のホームで 寂しくて 君からの文字 何度も読み返す"
+    segs = [{"no": i, "text": t, "reading": "あ"} for i, t in enumerate(body.split(), start=1)]
+
+    def save(**over):
+        payload = {"body": body, "segments": segs, "style": "colloquial", "orthography": "modern", **over}
+        return c.post(f"/tankas/{tid}/revisions", json=payload, headers=AUTH)
+
+    long_reading = [dict(s, reading="あ" * 500) for s in segs]
+    assert save(segments=long_reading).status_code == 422
+    assert save(segments=[dict(s, reading="<script>") for s in segs]).status_code == 422
+    assert save(segments=segs * 2).status_code == 422
+    assert save(body="あ" * 81).status_code == 422
+    assert save(readingChoices={"文字": "も" * 21}).status_code == 422
+    assert save(readingChoices={f"語{i}": "ご" for i in range(21)}).status_code == 422
+    assert c.post(f"/tankas/{tid}/preprocess", json={"body": body, "readingOverrides": {"文字": "x" * 30}}, headers=AUTH).status_code == 422
+    assert save(readingChoices={"文字": "もんじ"}).status_code == 201

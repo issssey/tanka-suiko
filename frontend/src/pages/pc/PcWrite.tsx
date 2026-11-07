@@ -123,7 +123,7 @@ export default function PcWrite() {
                       <span className="serif" style={{ fontSize: 16 }}>{seg.text}</span>
                       <label>
                         <span className="sr-only">{segLabel(seg.no)}の読み</span>
-                        <input value={value} onChange={(e) => reading.setManualReading(seg.no, seg.text, e.target.value)} />
+                        <input maxLength={40} value={value} onChange={(e) => reading.setManualReading(seg.no, seg.text, e.target.value)} />
                       </label>
                     </div>
                     <span className={`mora-badge${mora !== seg.expected ? " off" : ""}`}>{mora} / {seg.expected}</span>
@@ -182,7 +182,7 @@ export default function PcWrite() {
         )}
         <div className="field" style={{ padding: 0 }}>
           <label htmlFor="pc-body" style={{ fontSize: 14, color: "var(--text)" }}>本文</label>
-          <textarea id="pc-body" className="textarea serif" rows={4} value={body} onChange={(e) => setBody(e.target.value)} placeholder="一首を書いてください" />
+          <textarea id="pc-body" maxLength={80} className="textarea serif" rows={4} value={body} onChange={(e) => setBody(e.target.value)} placeholder="一首を書いてください" />
           <p className="hint">
             {isNew
               ? "スペースや改行で句の区切りを示せます（なくても自動で分けます）。文語・旧仮名の歌も書けます。"
@@ -192,7 +192,7 @@ export default function PcWrite() {
         {!isNew && (
           <div className="field" style={{ padding: 0 }}>
             <label htmlFor="pc-note" style={{ fontSize: 14, color: "var(--text)" }}>推敲メモ <span style={{ fontWeight: 400, color: "var(--muted)" }}>（任意）</span></label>
-            <input id="pc-note" className="input" style={{ height: 44, fontSize: 15 }} value={note} onChange={(e) => setNote(e.target.value)} placeholder="例：涙の描写をやめて、行動で見せる" />
+            <input id="pc-note" maxLength={200} className="input" style={{ height: 44, fontSize: 15 }} value={note} onChange={(e) => setNote(e.target.value)} placeholder="例：涙の描写をやめて、行動で見せる" />
           </div>
         )}
       </div>

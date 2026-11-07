@@ -12,7 +12,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .auth import current_user, delete_firebase_user, verify_tasks_caller
 from .checkers.llm import AnthropicJSONClient, LLMChecker, NullLLMClient
@@ -29,27 +29,64 @@ logging.basicConfig(level=logging.INFO)
 # --- 入出力 ---------------------------------------------------------------
 
 
+# 入力の上限。LLMへの入力（＝費用）が際限なく大きくならないよう、API で必ず確かめる。
+# 短歌は31音前後なので、本文は空白込みで80字あれば足りる。
+MAX_BODY = 80
+MAX_SEGMENT_TEXT = 40
+MAX_READING = 40  # 1句の読み（かな）
+MAX_CHOICES = 20  # 読みの選択（表層形 → 読み）の数
+MAX_CHOICE_SURFACE = 20
+MAX_CHOICE_READING = 20
+
+
+def _is_reading(text: str) -> bool:
+    """読みとして受け付ける文字（ひらがな・カタカナ・長音・空白）だけか。"""
+    return all(0x3041 <= ord(c) <= 0x30FF or c in " 　" for c in text)
+
+
+def _check_choices(value: dict[str, str]) -> dict[str, str]:
+    if len(value) > MAX_CHOICES:
+        raise ValueError(f"読みの選択は{MAX_CHOICES}件までです")
+    for surface, reading in value.items():
+        if not surface or len(surface) > MAX_CHOICE_SURFACE:
+            raise ValueError("読みを選んだ語が長すぎます")
+        if not reading or len(reading) > MAX_CHOICE_READING or not _is_reading(reading):
+            raise ValueError("読みは20字までのかなで入力してください")
+    return value
+
+
 class PreprocessIn(BaseModel):
-    body: str = Field(min_length=1, max_length=200)
+    body: str = Field(min_length=1, max_length=MAX_BODY)
     style: Literal["colloquial", "literary"] | None = None
     orthography: Literal["modern", "historical"] | None = None
     readingOverrides: dict[str, str] = Field(default_factory=dict)
 
+    _overrides = field_validator("readingOverrides")(_check_choices)
+
 
 class SegmentIn(BaseModel):
-    no: int
-    text: str
-    reading: str
+    no: int = Field(ge=1, le=5)
+    text: str = Field(min_length=1, max_length=MAX_SEGMENT_TEXT)
+    reading: str = Field(min_length=1, max_length=MAX_READING)
+
+    @field_validator("reading")
+    @classmethod
+    def _kana_only(cls, v: str) -> str:
+        if not _is_reading(v):
+            raise ValueError("読みはかなで入力してください")
+        return v
 
 
 class CreateRevisionIn(BaseModel):
     parentRevisionId: str | None = None
-    body: str = Field(min_length=1, max_length=200)
-    segments: list[SegmentIn]
+    body: str = Field(min_length=1, max_length=MAX_BODY)
+    segments: list[SegmentIn] = Field(min_length=5, max_length=5)
     style: Literal["colloquial", "literary"]
     orthography: Literal["modern", "historical"]
-    note: str | None = Field(default=None, max_length=500)
+    note: str | None = Field(default=None, max_length=200)
     readingChoices: dict[str, str] = Field(default_factory=dict)
+
+    _choices = field_validator("readingChoices")(_check_choices)
 
 
 class FeedbackIn(BaseModel):

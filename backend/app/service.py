@@ -22,6 +22,9 @@ from .tasks import Enqueuer
 log = logging.getLogger(__name__)
 
 
+GLOBAL_USAGE_KEY = "__all__"
+
+
 class Forbidden(PermissionError):
     pass
 
@@ -237,6 +240,10 @@ class Service:
 
         day = datetime.now(ZoneInfo(self.settings.timezone)).strftime("%Y-%m-%d")
         if self.repo.increment_daily_usage(tanka.authorId, day) > self.settings.async_daily_limit:
+            return finish("limited")
+        # サービス全体の上限（利用者IDとは重ならない名前で数える）
+        if self.repo.increment_daily_usage(GLOBAL_USAGE_KEY, day) > self.settings.async_global_daily_limit:
+            log.warning("サービス全体の1日の上限に達しました")
             return finish("limited")
 
         running = run.model_copy(update={"status": "running"})

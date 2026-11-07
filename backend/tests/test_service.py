@@ -232,3 +232,27 @@ def test_word_fingerprint_is_stable_when_llm_span_changes(service, fake_llm):
     assert {f.fingerprint for f in run1.findings} == {"B1:寂しい", "B2:涙"}
     assert {f.fingerprint: f.transition for f in run2.findings} == {"B1:寂しい": "continued"}
     assert run2.resolvedFingerprints == ["B2:涙"]
+
+
+def test_global_daily_limit(service, fake_llm):
+    service.settings = service.settings.__class__(**{**service.settings.__dict__, "async_global_daily_limit": 1})
+    t1 = service.create_tanka(USER)
+    save(service, t1.id, "夕暮れの駅のホームの片隅で君を待つ間に涙こぼれて")
+    other = service.create_tanka("u2")
+    pre, segs = confirmed("夕暮れの駅のホームで寂しくて君からの文字何度も読み返す")
+    r = service.create_revision("u2", other.id, parent_revision_id=None, body=pre.bodyNormalized, segments=segs,
+                                style=pre.style, orthography=pre.orthography, note=None)
+    run = [x for x in service.repo.list_check_runs(other.id, r.revision.id) if x.phase == "async"][0]
+    assert run.status == "limited"  # 別の作者でも、サービス全体の上限で止まる
+    assert len(fake_llm.calls) == 1
+
+
+def test_oversized_prompt_is_not_sent(service, fake_llm, monkeypatch):
+    import app.checkers.llm as llm
+
+    monkeypatch.setattr(llm, "MAX_USER_PROMPT_CHARS", 100)
+    t = service.create_tanka(USER)
+    r = save(service, t.id, "夕暮れの駅のホームの片隅で君を待つ間に涙こぼれて")
+    run = [x for x in service.repo.list_check_runs(t.id, r.revision.id) if x.phase == "async"][0]
+    assert run.status == "failed" and "長すぎる" in run.error
+    assert fake_llm.calls == []

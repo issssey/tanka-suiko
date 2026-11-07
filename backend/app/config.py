@@ -30,6 +30,8 @@ class Settings:
     # 連続保存のとき、最後の版だけLLMにかけるための遅延（秒）
     async_delay_seconds: int = 5
     async_daily_limit: int = 100
+    # サービス全体での1日の意味のチェックの上限（多数のアカウントでの乱用に備える）
+    async_global_daily_limit: int = 3000
     # LLM: anthropic / vertex / none
     llm_provider: str = "none"
     llm_model: str = "claude-sonnet-5-5"
@@ -78,6 +80,7 @@ def get_settings() -> Settings:
         worker_audience=_env("WORKER_AUDIENCE"),
         async_delay_seconds=int(_env("ASYNC_DELAY_SECONDS", "5")),
         async_daily_limit=int(_env("ASYNC_DAILY_LIMIT", "100")),
+        async_global_daily_limit=int(_env("ASYNC_GLOBAL_DAILY_LIMIT", "3000")),
         llm_provider=_env("LLM_PROVIDER", "none"),
         llm_model=_env("LLM_MODEL", "claude-sonnet-5-5"),
         llm_effort=_env("LLM_EFFORT"),

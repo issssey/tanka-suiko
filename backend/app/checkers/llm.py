@@ -150,6 +150,11 @@ class LLMResult:
     discarded: int
 
 
+# LLMに送る、歌ごとの部分（本文・読み・形態素・前の稿など）の上限（文字数）。
+# API の入力制限で通常は 2,000 字前後に収まる。それを大きく超えるのは不正な入力なので送らない。
+MAX_USER_PROMPT_CHARS = 6000
+
+
 class LLMChecker:
     phase = "async"
 
@@ -170,7 +175,10 @@ class LLMChecker:
             # パターン定義は版をまたいで変わらないのでキャッシュの対象にする
             {"type": "text", "text": _pattern_block(patterns), "cache_control": {"type": "ephemeral"}},
         ]
-        data = self.client.complete_json(system, build_user_prompt(ctx), output_schema(codes))
+        user = build_user_prompt(ctx)
+        if len(user) > MAX_USER_PROMPT_CHARS:
+            raise LLMError(f"入力が長すぎるため判定しませんでした（{len(user)}字）")
+        data = self.client.complete_json(system, user, output_schema(codes))
         return validate_output(data, ctx, set(codes))
 
 
