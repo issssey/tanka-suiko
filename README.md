@@ -65,7 +65,7 @@ npm install --legacy-peer-deps
 VITE_USE_EMULATORS=true VITE_FIREBASE_PROJECT_ID=demo-tanka-suiko npm run dev
 ```
 
-ログインは「メールアドレスで続ける」を使い、Auth Emulator のログに出るリンクを開く。
+ログインは「Googleアカウントで続ける」を押すと、Auth Emulator の仮のGoogleログイン画面が開く（実際のアカウントは不要）。
 
 ## 環境変数（バックエンド）
 

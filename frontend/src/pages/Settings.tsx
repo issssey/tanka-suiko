@@ -13,7 +13,7 @@ export default function SettingsPage() {
   const { busy, error, exportAll, removeAccount: remove } = useAccountActions();
   const removeAccount = () => remove().catch(() => setConfirm(false));
 
-  const provider = user?.providerData[0]?.providerId === "google.com" ? "Googleでログイン中" : "メールでログイン中";
+  const provider = "Googleでログイン中";
 
   function Choice<K extends "defaultStyle" | "defaultOrthography">({ k, options }: { k: K; options: { v: Settings[K]; l: string }[] }) {
     return (

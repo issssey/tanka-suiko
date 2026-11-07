@@ -1,11 +1,9 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
-import { sendEmailLink, signInWithGoogle, useAuth } from "../lib/auth";
+import { signInWithGoogle, useAuth } from "../lib/auth";
 
 export default function LoginPage() {
   const { user } = useAuth();
-  const [mode, setMode] = useState<"choose" | "email" | "sent">("choose");
-  const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -13,22 +11,15 @@ export default function LoginPage() {
 
   async function google() {
     setError(null);
+    setBusy(true);
     try {
       await signInWithGoogle();
-    } catch {
-      setError("ログインできませんでした。もう一度お試しください。");
-    }
-  }
-
-  async function submitEmail(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      await sendEmailLink(email.trim());
-      setMode("sent");
-    } catch {
-      setError("メールを送れませんでした。アドレスを確かめてください。");
+    } catch (e) {
+      // ポップアップを閉じただけのときは何も出さない
+      const code = (e as { code?: string }).code;
+      if (code !== "auth/popup-closed-by-user" && code !== "auth/cancelled-popup-request") {
+        setError("ログインできませんでした。もう一度お試しください。");
+      }
     } finally {
       setBusy(false);
     }
@@ -50,25 +41,7 @@ export default function LoginPage() {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingBottom: 28 }}>
         {error && <p className="error" style={{ margin: 0 }}>{error}</p>}
-        {mode === "choose" && (
-          <>
-            <button type="button" className="btn-primary" onClick={google}>Googleアカウントで続ける</button>
-            <button type="button" className="btn-secondary" onClick={() => setMode("email")}>メールアドレスで続ける</button>
-          </>
-        )}
-        {mode === "email" && (
-          <form onSubmit={submitEmail} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <label className="label" htmlFor="email">メールアドレス</label>
-            <input id="email" className="input" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-            <button type="submit" className="btn-primary" disabled={busy || !email}>ログイン用のリンクを送る</button>
-            <button type="button" className="btn-secondary" onClick={() => setMode("choose")}>戻る</button>
-          </form>
-        )}
-        {mode === "sent" && (
-          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8 }}>
-            {email} にログイン用のリンクを送りました。メールを開いてリンクを押してください。
-          </p>
-        )}
+        <button type="button" className="btn-primary" disabled={busy} onClick={google}>Googleアカウントで続ける</button>
         <p className="muted" style={{ margin: "8px 0 0", fontSize: 12, lineHeight: 1.7, textAlign: "center" }}>
           続けると<a href="#terms">利用規約</a>と<a href="#privacy">プライバシーポリシー</a>に同意したものとみなします。
         </p>

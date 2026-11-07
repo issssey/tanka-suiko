@@ -24,7 +24,7 @@ prd のプロジェクトには `release` からしか入れない（`deploy/set
 1. GCP でプロジェクトを作り、課金を有効にする（dev と prd で2つ）
 2. [Firebase コンソール](https://console.firebase.google.com/)で「プロジェクトを追加」から、そのGCPプロジェクトを選んで Firebase を追加する
 3. プロジェクトの設定 > マイアプリ で、ウェブアプリを登録する。表示される `apiKey` と `appId` を控える
-4. Authentication > ログイン方法 で「Google」と「メール/パスワード」の「メールリンク（パスワードなしでログイン）」を有効にする
+4. Authentication > ログイン方法 で「Google」だけを有効にする（メール/パスワードなどほかの方法は無効のままにする）
 5. 独自ドメインを使う場合は、Authentication > 設定 > 承認済みドメイン に追加する
 
 ### 2. 初期設定スクリプト（Cloud Shell で、プロジェクトのオーナーが実行）

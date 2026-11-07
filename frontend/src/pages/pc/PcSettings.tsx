@@ -23,7 +23,7 @@ export default function PcSettings() {
   const [settings, update] = useSettings();
   const [confirm, setConfirm] = useState(false);
   const account = useAccountActions();
-  const provider = user?.providerData[0]?.providerId === "google.com" ? "Googleでログイン中" : "メールでログイン中";
+  const provider = "Googleでログイン中";
 
   // /patterns や #patterns で来たときは、その節を表示する
   useEffect(() => {
