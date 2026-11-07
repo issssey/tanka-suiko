@@ -105,7 +105,12 @@ say "Firestore のルールとインデックス、Hosting を展開する"
 (cd "$ROOT" && npx --yes firebase-tools@15 deploy --project "$PROJECT" --only firestore:rules,firestore:indexes,hosting --non-interactive)
 
 say "疎通確認"
-curl -fsS "$API_URL/healthz" && echo
+# 新しいリビジョンが立ち上がるまで少し待つことがある。失敗したら展開を失敗にする
+for i in 1 2 3 4 5; do
+  if curl -fsS --max-time 20 "$API_URL/health"; then echo; break; fi
+  if [ "$i" = 5 ]; then echo "API が応答しません: $API_URL/health" >&2; exit 1; fi
+  sleep 10
+done
 
 cat <<EOF
 

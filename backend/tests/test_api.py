@@ -86,3 +86,9 @@ def test_refuses_dev_settings_on_cloud_run():
     ok = Settings(auth_mode="firebase", repository="firestore", tasks_mode="cloudtasks", firebase_project_id="p")
     check_production_safety(ok, {"K_SERVICE": "tanka-api"})
     check_production_safety(Settings(), {})  # ローカルでは何もしない
+
+
+def test_health_endpoints(service):
+    c = client(service)
+    assert c.get("/health").json()["ok"] is True
+    assert c.get("/healthz").status_code == 200

@@ -146,8 +146,11 @@ def create_app(settings: Settings | None = None, service: Service | None = None)
     async def _preprocess_error(request: Request, exc: PreprocessError):
         return JSONResponse({"detail": str(exc)}, status_code=422)
 
+    # Cloud Run は z で終わるパス（/healthz など）を予約していて、アプリに届かない。
+    # 本番の疎通確認には /health を使う（/healthz はローカル用に残す）
+    @app.get("/health")
     @app.get("/healthz")
-    def healthz():
+    def health():
         return {"ok": True, "role": settings.app_role}
 
     if settings.app_role in ("api", "all"):
