@@ -50,6 +50,10 @@ export interface Tanka {
   deletedAt: Date | null;
   nextRevisionNo: number;
   readingMemory: Record<string, string>;
+  /** 発表記録の件数 */
+  publishedCount?: number;
+  /** 入っている連作 */
+  sequenceIds?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -119,4 +123,31 @@ export interface SaveResponse {
   syncRun: { runId: string; findings: Finding[]; resolvedFingerprints: string[] };
   asyncRunId: string;
   asyncRunStatus: RunStatus;
+}
+
+/** 連作。題と歌の並びを持つ作品の単位。歌は入れた時点の稿を指す。 */
+export interface Sequence {
+  id: string;
+  authorId: string;
+  title: string;
+  items: { tankaId: string; revisionId: string }[];
+  note: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** 発表記録。出した時点の稿と本文、連作の題を写して持つ。 */
+export interface Publication {
+  id: string;
+  authorId: string;
+  destination: string;
+  /** YYYY-MM-DD */
+  submittedOn: string;
+  note: string | null;
+  sequenceId: string | null;
+  sequenceTitle: string | null;
+  items: { tankaId: string; revisionId: string; revisionNo: number; body: string }[];
+  tankaIds: string[];
+  createdAt: Date;
+  updatedAt: Date;
 }

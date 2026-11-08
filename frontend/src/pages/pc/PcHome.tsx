@@ -7,6 +7,7 @@ import { loadSettings } from "../../lib/settings";
 import type { Tanka } from "../../lib/types";
 import { PcHeader } from "../../components/pc";
 import { formatDate, Loading, PlusIcon } from "../../components/ui";
+import { LibraryTabs, PublishedChips } from "../../components/library";
 
 function SearchIcon() {
   return (
@@ -50,6 +51,7 @@ export default function PcHome() {
               </Link>
             </div>
           </div>
+          <LibraryTabs active="tankas" pc />
           {shown.length === 0 && <p className="muted">「{q}」を含む短歌はありません。</p>}
           <div className="pc-grid">
             {shown.map((t) => (
@@ -78,6 +80,7 @@ function PcCard({ tanka }: { tanka: Tanka }) {
         {s.hidden.length > 0 && <span className="chip neutral">非表示 {s.hidden.length}</span>}
         {s.counts.resolved > 0 && <span className="chip accent">前稿から {s.counts.resolved}件解消</span>}
         {s.asyncPending && <span className="chip neutral">意味のチェック中</span>}
+        <PublishedChips tanka={tanka} />
       </div>
     </Link>
   );

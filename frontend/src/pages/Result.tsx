@@ -6,6 +6,7 @@ import { findingTitle, resolvedDetails, summarize } from "../lib/findings";
 import { loadSettings } from "../lib/settings";
 import { CheckIcon, ClockIcon, ConfirmDialog, FindingCard, formatDate, HighlightedPoem, Loading, RestoreDialog, TopBar, TrashIcon } from "../components/ui";
 import type { CheckRun } from "../lib/types";
+import { DeleteNote, PublishAndSequenceSection } from "../components/library";
 
 export default function ResultPage() {
   const { tankaId = "", revisionId = "" } = useParams();
@@ -124,6 +125,7 @@ export default function ResultPage() {
             {revisionCount > 1 ? `第1稿から第${revisionCount}稿までのすべての稿と、` : "この稿と、"}
             チェック結果、「意図的」「誤検出」にした指摘も削除されます。<strong>削除すると元に戻せません。</strong>
           </p>
+          <DeleteNote tanka={tanka} />
         </ConfirmDialog>
       )}
 
@@ -209,6 +211,8 @@ export default function ResultPage() {
           表示の設定で {s.filtered.length}件を省いています。<Link to="/settings">設定</Link>
         </p>
       )}
+
+      {tanka && <PublishAndSequenceSection tanka={tanka} rev={rev} />}
 
       <div className="footer-bar" style={{ marginTop: 24 }}>
         <Link to={`/t/${tankaId}/edit?from=${rev.id}`} className="btn-primary">

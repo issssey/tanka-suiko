@@ -8,6 +8,7 @@ import { loadSettings } from "../../lib/settings";
 import { findingsOf, findingTimeline } from "../../lib/timeline";
 import type { CheckRun, Finding } from "../../lib/types";
 import { PcShell, PcTally, VerticalPoem } from "../../components/pc";
+import { DeleteNote, PublishAndSequenceSection } from "../../components/library";
 import { BackIcon, CheckIcon, ConfirmDialog, formatDate, Loading, RestoreDialog, SeverityBadge, TransitionBadge, TrashIcon } from "../../components/ui";
 
 type Mode = "list" | "finding" | "hidden";
@@ -109,6 +110,7 @@ export default function PcResult({ mode, revisionIdOverride }: { mode: Mode; rev
         {s.filtered.length > 0 && (
           <p className="small muted" style={{ margin: 0 }}>表示の設定で {s.filtered.length}件を省いています。<Link to="/settings#display">設定</Link></p>
         )}
+        {tanka && <PublishAndSequenceSection tanka={tanka} rev={rev} pc />}
       </>
     );
   }
@@ -176,6 +178,7 @@ export default function PcResult({ mode, revisionIdOverride }: { mode: Mode; rev
             {revisionCount > 1 ? `第1稿から第${revisionCount}稿までのすべての稿と、` : "この稿と、"}
             チェック結果、「意図的」「誤検出」にした指摘も削除されます。<strong>削除すると元に戻せません。</strong>
           </p>
+          <DeleteNote tanka={tanka} />
         </ConfirmDialog>
       )}
     </PcShell>

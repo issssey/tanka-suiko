@@ -5,6 +5,8 @@ import { severityCounts, summarize } from "../lib/findings";
 import { loadSettings } from "../lib/settings";
 import type { Tanka } from "../lib/types";
 import { formatDate, GearIcon, Loading, PlusIcon } from "../components/ui";
+import { LibraryTabs, PublishedChips } from "../components/library";
+import { LibraryHeader } from "./Sequences";
 
 export default function ListPage() {
   const { user } = useAuth();
@@ -17,13 +19,9 @@ export default function ListPage() {
 
   return (
     <>
-      <header className="page-header">
-        <h1 className="brand">推敲帖</h1>
-        <Link to="/settings" className="icon-btn" aria-label="設定" style={{ color: "var(--muted)" }}>
-          <GearIcon />
-        </Link>
-      </header>
-      <p className="muted" style={{ margin: 0, padding: "0 20px 16px", fontSize: 13 }}>{withRevision.length}首 · 最近推敲した順</p>
+      <LibraryHeader />
+      <LibraryTabs active="tankas" />
+      <p className="muted" style={{ margin: 0, padding: "0 20px 12px", fontSize: 13 }}>{withRevision.length}首 · 最近推敲した順</p>
       <div className="stack" style={{ paddingBottom: 120 }}>
         {withRevision.map((t) => (
           <TankaCard key={t.id} tanka={t} />
@@ -56,6 +54,7 @@ function TankaCard({ tanka }: { tanka: Tanka }) {
         {s.hidden.length > 0 && <span className="chip neutral">非表示 {s.hidden.length}</span>}
         {s.counts.resolved > 0 && <span className="chip accent">前稿から {s.counts.resolved}件解消</span>}
         {s.asyncPending && <span className="chip neutral">意味のチェック中</span>}
+        <PublishedChips tanka={tanka} />
       </div>
     </Link>
   );

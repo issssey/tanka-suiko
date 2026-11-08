@@ -21,6 +21,13 @@ import PcResult from "./pages/pc/PcResult";
 import PcHidden from "./pages/pc/PcHidden";
 import PcHistory from "./pages/pc/PcHistory";
 import PcSettings from "./pages/pc/PcSettings";
+import SequencesPage from "./pages/Sequences";
+import SequencePage from "./pages/Sequence";
+import PublicationsPage from "./pages/Publications";
+import PublishPage from "./pages/Publish";
+import PcSequences from "./pages/pc/PcSequences";
+import PcPublications from "./pages/pc/PcPublications";
+import PcPublish from "./pages/pc/PcPublish";
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -48,6 +55,11 @@ function Screens() {
         <Route path="/t/:tankaId/history" element={auth(pick(<HistoryPage />, <PcHistory />))} />
         <Route path="/t/:tankaId/compare" element={auth(pick(<ComparePage />, <PcHistory />))} />
         <Route path="/t/:tankaId/hidden" element={auth(pick(<HiddenPage />, <PcHidden />))} />
+        <Route path="/sequences" element={auth(pick(<SequencesPage />, <PcSequences />))} />
+        <Route path="/sequences/:sequenceId" element={auth(pick(<SequencePage />, <PcSequences />))} />
+        <Route path="/publications" element={auth(pick(<PublicationsPage />, <PcPublications />))} />
+        <Route path="/publish" element={auth(pick(<PublishPage />, <PcPublish />))} />
+        <Route path="/publications/:publicationId/edit" element={auth(pick(<PublishPage key="edit" />, <PcPublish key="edit" />))} />
         <Route path="/settings" element={auth(pick(<SettingsPage />, <PcSettings />))} />
         <Route path="/patterns" element={pick(<PatternsPage />, <RequireAuth><PcSettings /></RequireAuth>)} />
         <Route path="*" element={<Navigate to="/" replace />} />

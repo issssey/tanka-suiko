@@ -57,6 +57,9 @@ cd backend && .venv/bin/python scripts/export_patterns.py ../frontend/src/genera
 - 1日の意味のチェックの上限：作者ごと100回、サービス全体3,000回
 - 昔の稿を正にするのは「この稿に戻す」：同じ内容の稿をその稿を親にして新しく作り、いまの稿にする（`restoredFromRevisionId`）。意味のチェックは親の結果を再利用し、LLMを呼ばない
 - 推敲履歴は枝分かれできる。E3（行ったり来たり）は親をたどった祖先の稿とだけ比べ、捨てた系統の稿は数えない
+- 連作と発表（設計書「連作と発表」）：短歌に確定の状態は持たせず、発表記録を事実上の確定とする。発表済み・連作の表示は tankas.publishedCount・sequenceIds から出し、別のフラグは持たない。どちらも連作・記録の書き込みと同じトランザクションで更新する
+- 連作は変えたらすぐ保存する（保存ボタンなし）。題は空でもよく「無題の連作」と出す。スマホ版にも「外す」を置いた（デザインはPC版だけ）
+- users/{uid} は1日の回数（asyncChecks）と出し先の候補（destinations）を持つ。回数を数えるときは asyncChecks だけを置き換える（文書ごと置き換えると候補が消える）
 
 ## ハマりどころ（実際に踏んだもの）
 
@@ -69,6 +72,7 @@ cd backend && .venv/bin/python scripts/export_patterns.py ../frontend/src/genera
 - Claude Code のクラウドセッションでは `ANTHROPIC_BASE_URL` がセッション用に入っている。本物の API を呼ぶときは外す（`scripts/llm_smoke.py` がやっている）
 - `anti_patterns.yaml` を変えたら `export_patterns.py` で `patterns.json` を作り直す（テスト `test_generated.py` が検出する）。例の文面を変えると LLM の判定も変わる（promptVersion が変わる）
 - iPhone の Safari はノッチ部分の色を html・body の背景から取る。スマホ幅では body を地の色（#FAFAF7）にしている
+- CSS の `.pc` は PC版の画面全体の入れ物（縦並び・画面の高さ）。部品の修飾子に `pc` という class 名を付けると巻き込まれる（`lib-tabs-pc` のように別名にする）
 
 ## 検証のしかた
 

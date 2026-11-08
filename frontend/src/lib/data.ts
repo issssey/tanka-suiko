@@ -11,7 +11,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { CheckRun, Feedback, Revision, Tanka } from "./types";
+import type { CheckRun, Feedback, Publication, Revision, Sequence, Tanka } from "./types";
 
 export interface Loadable<T> {
   data: T;
@@ -161,5 +161,91 @@ export function useFeedback(tankaId: string | undefined): Loadable<Feedback[]> {
       : null,
     [],
     [tankaId],
+  );
+}
+
+// --- 連作と発表記録（自分のものだけ。ルールで authorId を確かめるので where を必ず付ける） ---
+export function useSequences(uid: string | undefined): Loadable<Sequence[]> {
+  return useSnapshot<Sequence[]>(
+    uid
+      ? (set, fail) =>
+          onSnapshot(
+            query(collection(db, "sequences"), where("authorId", "==", uid), orderBy("updatedAt", "desc")),
+            (snap) => set(snap.docs.map((d) => fromDoc<Sequence>(d.id, d.data()))),
+            fail,
+          )
+      : null,
+    [],
+    [uid],
+  );
+}
+
+export function useSequence(sequenceId: string | undefined): Loadable<Sequence | null> {
+  return useSnapshot<Sequence | null>(
+    sequenceId
+      ? (set, fail) =>
+          onSnapshot(doc(db, "sequences", sequenceId), (d) => set(d.exists() ? fromDoc<Sequence>(d.id, d.data()) : null), fail)
+      : null,
+    null,
+    [sequenceId],
+  );
+}
+
+export function usePublications(uid: string | undefined): Loadable<Publication[]> {
+  return useSnapshot<Publication[]>(
+    uid
+      ? (set, fail) =>
+          onSnapshot(
+            query(collection(db, "publications"), where("authorId", "==", uid), orderBy("submittedOn", "desc")),
+            (snap) => set(snap.docs.map((d) => fromDoc<Publication>(d.id, d.data()))),
+            fail,
+          )
+      : null,
+    [],
+    [uid],
+  );
+}
+
+export function usePublication(publicationId: string | undefined): Loadable<Publication | null> {
+  return useSnapshot<Publication | null>(
+    publicationId
+      ? (set, fail) =>
+          onSnapshot(doc(db, "publications", publicationId), (d) => set(d.exists() ? fromDoc<Publication>(d.id, d.data()) : null), fail)
+      : null,
+    null,
+    [publicationId],
+  );
+}
+
+/** その短歌を含む発表記録（稿が違っても）。 */
+export function useTankaPublications(uid: string | undefined, tankaId: string | undefined): Loadable<Publication[]> {
+  return useSnapshot<Publication[]>(
+    uid && tankaId
+      ? (set, fail) =>
+          onSnapshot(
+            query(
+              collection(db, "publications"),
+              where("authorId", "==", uid),
+              where("tankaIds", "array-contains", tankaId),
+              orderBy("submittedOn", "desc"),
+            ),
+            (snap) => set(snap.docs.map((d) => fromDoc<Publication>(d.id, d.data()))),
+            fail,
+          )
+      : null,
+    [],
+    [uid, tankaId],
+  );
+}
+
+/** 出し先の候補（最近使った順）。 */
+export function useDestinations(uid: string | undefined): Loadable<string[]> {
+  return useSnapshot<string[]>(
+    uid
+      ? (set, fail) =>
+          onSnapshot(doc(db, "users", uid), (d) => set(((d.exists() && d.data().destinations) || []) as string[]), fail)
+      : null,
+    [],
+    [uid],
   );
 }
