@@ -66,6 +66,8 @@ export interface Revision {
   segments: Segment[];
   tokens: Token[];
   note: string | null;
+  /** 「この稿に戻す」で作った稿なら、戻した先の稿（＝親）の ID */
+  restoredFromRevisionId?: string | null;
   createdAt: Date;
 }
 

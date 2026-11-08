@@ -51,6 +51,7 @@ export default function HistoryPage() {
                     第{r.revisionNo}稿
                     {r.id === tanka?.currentRevisionId && <span className="chip accent" style={{ marginLeft: 8 }}>いまの稿</span>}
                     {!parent && <span className="chip neutral" style={{ marginLeft: 8 }}>初稿</span>}
+                    {r.restoredFromRevisionId && parent && <span className="chip neutral" style={{ marginLeft: 8 }}>第{parent.revisionNo}稿に戻した</span>}
                   </span>
                   <span className="small muted">{formatDate(r.createdAt)}</span>
                 </div>

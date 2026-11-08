@@ -106,6 +106,20 @@ def test_e3_revert(patterns):
     assert RevertRule().check(ctx_for(r2, patterns, parent=r1, history=[r1])) == []
 
 
+def test_e3_ignores_abandoned_branch(patterns):
+    """枝分かれで通らなかった稿は、戻った先として数えない（比べるのは祖先だけ）。"""
+    r1 = make_revision("夕暮れの駅のホームの片隅で君を待つ間に涙こぼれて", rev_id="r1", no=1)
+    r2 = make_revision("夕暮れの駅のホームの片隅で頬を伝う涙ひとり寂しく", rev_id="r2", no=2, parent="r1")
+    # 第1稿から枝分かれ（第2稿は捨てた系統）
+    r3 = make_revision("夕暮れの駅のホームの片隅で君を待つ間に雨が降りだす", rev_id="r3", no=3, parent="r1")
+    r4 = make_revision("夕暮れの駅のホームの片隅で君を待つ間にひとり寂しく", rev_id="r4", no=4, parent="r3")
+    assert RevertRule().check(ctx_for(r4, patterns, parent=r3, history=[r1, r2, r3])) == []
+    # 祖先（第1稿）の表現に戻ったときは指摘する
+    r5 = make_revision("夕暮れの駅のホームの片隅で君を待つ間に涙こぼれて", rev_id="r5", no=5, parent="r4")
+    f = RevertRule().check(ctx_for(r5, patterns, parent=r4, history=[r1, r2, r3, r4]))
+    assert len(f) == 1 and "第1稿" in f[0].message
+
+
 def test_word_fingerprint_counts_occurrences(patterns):
     rev = make_revision("私だけ私の駅で立ち止まる君からの文字何度も読み返す")
     f = finalize(FirstPersonRule().check(ctx_for(rev, patterns)), patterns)

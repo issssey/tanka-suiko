@@ -105,6 +105,11 @@ def test_create_revision_numbers_and_updates_tanka(repo):
     got = repo.get_revision(t.id, r2.id)
     assert got.parentRevisionId == r1.id and got.note == "メモ"
     assert got.segments[4].span == (20, 27) and got.tokens[0].span == (0, 3)
+    assert got.restoredFromRevisionId is None
+    # 「この稿に戻す」で作った稿は、戻した先を持つ
+    r3 = repo.create_revision(t.id, {**revision_data(BODY1, parent=r1.id), "restoredFromRevisionId": r1.id}, {})
+    assert repo.get_revision(t.id, r3.id).restoredFromRevisionId == r1.id
+    assert repo.get_tanka(t.id).currentRevisionId == r3.id
 
 
 def test_reading_memory_is_merged(repo):

@@ -121,6 +121,39 @@ def test_reuses_result_when_text_unchanged(service, fake_llm):
     assert len(fake_llm.calls) == 1
 
 
+def test_restore_old_revision(service, fake_llm):
+    """「この稿に戻す」：昔の稿と同じ内容の稿をその稿を親にして作り、いまの稿にする。LLMは呼ばない。"""
+    t = service.create_tanka(USER)
+    body1 = "夕暮れの駅のホームの片隅で君を待つ間に涙こぼれて"
+    r1 = save(service, t.id, body1, note="初稿")
+    r2 = save(service, t.id, "夕暮れの駅のホームで寂しくて君からの文字何度も読み返す", parent=r1.revision.id)
+    calls = len(fake_llm.calls)
+
+    res = service.restore_revision(USER, t.id, r1.revision.id)
+    rev = res.revision
+    assert rev.revisionNo == 3
+    assert rev.parentRevisionId == r1.revision.id and rev.restoredFromRevisionId == r1.revision.id
+    assert rev.bodyNormalized == r1.revision.bodyNormalized and rev.reading == r1.revision.reading
+    assert rev.segments == r1.revision.segments and rev.note is None
+    tanka = service.repo.get_tanka(t.id)
+    assert tanka.currentRevisionId == rev.id and tanka.latestBody == r1.revision.bodyNormalized
+    # 親と同じ内容なので、指摘はすべて継続、解消なし
+    assert res.sync_run.resolvedFingerprints == []
+    assert all(f.transition == "continued" for f in res.sync_run.findings)
+    run = [r for r in service.repo.list_check_runs(t.id, rev.id) if r.phase == "async"][0]
+    assert run.status == "done" and run.reusedFromRunId is not None
+    assert len(fake_llm.calls) == calls
+    assert r2.revision.id != rev.id
+
+    # いまの稿には戻せない・他人の短歌には戻せない・ない稿には戻せない
+    with pytest.raises(BadRequest):
+        service.restore_revision(USER, t.id, rev.id)
+    with pytest.raises(Forbidden):
+        service.restore_revision("u2", t.id, r1.revision.id)
+    with pytest.raises(BadRequest):
+        service.restore_revision(USER, t.id, "missing")
+
+
 def test_daily_limit(service, fake_llm):
     service.settings = service.settings.__class__(**{**service.settings.__dict__, "async_daily_limit": 1})
     t = service.create_tanka(USER)

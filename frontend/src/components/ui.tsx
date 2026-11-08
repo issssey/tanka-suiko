@@ -94,6 +94,7 @@ export function ConfirmDialog({
   title,
   children,
   confirmLabel,
+  tone = "danger",
   busy,
   onConfirm,
   onCancel,
@@ -101,6 +102,7 @@ export function ConfirmDialog({
   title: string;
   children: ReactNode;
   confirmLabel: string;
+  tone?: "danger" | "primary";
   busy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
@@ -120,11 +122,30 @@ export function ConfirmDialog({
         <h2 id="dialog-title" style={{ margin: "4px 0 0", fontSize: 18, fontWeight: 700 }}>{title}</h2>
         {children}
         <div className="dialog-actions">
-          <button type="button" className="btn-danger" disabled={busy} onClick={onConfirm}>{confirmLabel}</button>
+          <button type="button" className={tone === "danger" ? "btn-danger" : "btn-primary"} disabled={busy} onClick={onConfirm}>{confirmLabel}</button>
           <button type="button" ref={cancelRef} className="btn-secondary" disabled={busy} onClick={onCancel}>キャンセル</button>
         </div>
       </section>
     </div>
+  );
+}
+
+/** 「この稿に戻す」の確認。同じ歌を新しい稿として保存し、いまの稿にする。 */
+export function RestoreDialog({ revisionNo, nextNo, body, busy, onConfirm, onCancel }: {
+  revisionNo: number;
+  nextNo: number;
+  body: string;
+  busy?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <ConfirmDialog title={`第${revisionNo}稿に戻しますか？`} confirmLabel="この稿に戻す" tone="primary" busy={busy} onConfirm={onConfirm} onCancel={onCancel}>
+      <p className="quote">{body}</p>
+      <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8 }}>
+        この歌を第{nextNo}稿として保存し、いまの稿にします。それまでの稿は履歴に残ります。チェック結果は第{revisionNo}稿のものを引き継ぎます。
+      </p>
+    </ConfirmDialog>
   );
 }
 

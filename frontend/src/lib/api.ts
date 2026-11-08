@@ -80,6 +80,11 @@ export function saveRevision(tankaId: string, input: SaveRevisionInput) {
   return request<SaveResponse>("POST", `/tankas/${tankaId}/revisions`, input);
 }
 
+/** 「この稿に戻す」。同じ内容の稿を新しく保存し、いまの稿にする。 */
+export function restoreRevision(tankaId: string, revisionId: string) {
+  return request<SaveResponse>("POST", `/tankas/${tankaId}/revisions/${revisionId}/restore`);
+}
+
 export function recheck(tankaId: string, revisionId: string) {
   return request<SaveResponse>("POST", `/tankas/${tankaId}/revisions/${revisionId}/recheck`);
 }

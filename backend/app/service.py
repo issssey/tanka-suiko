@@ -121,6 +121,36 @@ class Service:
         async_run = self._queue_async(tanka_id, revision, trigger="save")
         return SaveResult(revision, sync_run, async_run)
 
+    def restore_revision(self, user_id: str, tanka_id: str, revision_id: str) -> SaveResult:
+        """「この稿に戻す」。昔の稿と同じ内容の稿を、その稿を親にして新しく保存し、いまの稿にする。
+        本文と読みが親と同じなので、意味のチェックは親の結果を再利用する（LLMを呼ばない）。"""
+        tanka = self._own_tanka(user_id, tanka_id)
+        try:
+            source = self.repo.get_revision(tanka_id, revision_id)
+        except NotFound as e:
+            raise BadRequest("戻す稿が見つかりません") from e
+        if tanka.currentRevisionId == source.id:
+            raise BadRequest("この稿はすでにいまの稿です")
+        revision = self.repo.create_revision(
+            tanka_id,
+            {
+                "parentRevisionId": source.id,
+                "body": source.body,
+                "bodyNormalized": source.bodyNormalized,
+                "reading": source.reading,
+                "orthography": source.orthography,
+                "style": source.style,
+                "segments": source.segments,
+                "tokens": source.tokens,
+                "note": None,
+                "restoredFromRevisionId": source.id,
+            },
+            {},
+        )
+        sync_run = self._run_sync(tanka_id, revision)
+        async_run = self._queue_async(tanka_id, revision, trigger="save")
+        return SaveResult(revision, sync_run, async_run)
+
     def recheck(self, user_id: str, tanka_id: str, revision_id: str) -> SaveResult:
         """ルールやプロンプトの更新後の再チェック。新しい checkRuns を追加する。"""
         self._own_tanka(user_id, tanka_id)

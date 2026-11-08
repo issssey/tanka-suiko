@@ -32,6 +32,7 @@ export default function PcHistory() {
   if (loading) return <PcShell activeTankaId={tankaId}><Loading /></PcShell>;
   const settings = loadSettings();
   const ordered = [...revisions].reverse();
+  const byNo = (id: string) => revisions.find((r) => r.id === id)?.revisionNo;
   const [left, right] = revisions.filter((r) => picked.includes(r.id)); // 古い方が左
 
   function toggle(id: string) {
@@ -62,7 +63,11 @@ export default function PcHistory() {
                   <span style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
                     <span style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
                       <Link to={`/t/${tankaId}/r/${r.id}`} style={{ fontWeight: 700, color: "var(--text)" }} onClick={(e) => e.stopPropagation()}>第{r.revisionNo}稿</Link>
-                      <span className="small muted">{formatDate(r.createdAt)}{!r.parentRevisionId && " · 初稿"}</span>
+                      <span className="small muted">
+                        {formatDate(r.createdAt)}
+                        {!r.parentRevisionId && " · 初稿"}
+                        {r.restoredFromRevisionId && byNo(r.restoredFromRevisionId) && ` · 第${byNo(r.restoredFromRevisionId)}稿に戻した`}
+                      </span>
                     </span>
                     <span className="serif" style={{ fontSize: 15, lineHeight: 1.8 }}>{r.bodyNormalized}</span>
                     <span className="small muted">

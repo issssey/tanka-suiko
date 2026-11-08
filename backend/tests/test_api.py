@@ -44,6 +44,9 @@ def test_full_flow(service):
     re = c.post(f"/tankas/{tid}/revisions/{out['revisionId']}/recheck", headers=AUTH)
     assert re.status_code == 201
 
+    # いまの稿には戻せない
+    assert c.post(f"/tankas/{tid}/revisions/{out['revisionId']}/restore", headers=AUTH).status_code == 422
+
 
 def test_auth_required(service):
     c = client(service)

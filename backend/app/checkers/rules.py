@@ -269,7 +269,14 @@ class RevertRule:
         parent = ctx.parent
         if parent is None:
             return []
-        older = [r for r in ctx.history if r.id != parent.id and r.revisionNo < parent.revisionNo]
+        # 比べるのは親より前の祖先だけ。枝分かれで通らなかった稿（捨てた系統）は含めない
+        by_id = {r.id: r for r in ctx.history}
+        ancestors: dict[str, Revision] = {}
+        current = by_id.get(parent.parentRevisionId or "")
+        while current is not None and current.id not in ancestors:
+            ancestors[current.id] = current
+            current = by_id.get(current.parentRevisionId or "")
+        older = sorted(ancestors.values(), key=lambda r: r.revisionNo)
         if not older:
             return []
         reverted = []

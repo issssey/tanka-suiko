@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { deleteTanka, putFeedback, recheck } from "../lib/api";
+import { deleteTanka, putFeedback, recheck, restoreRevision } from "../lib/api";
 import { useCheckRuns, useFeedback, useRevision, useTanka } from "../lib/data";
 import { findingTitle, resolvedDetails, summarize } from "../lib/findings";
 import { loadSettings } from "../lib/settings";
-import { CheckIcon, ClockIcon, ConfirmDialog, FindingCard, formatDate, HighlightedPoem, Loading, TopBar, TrashIcon } from "../components/ui";
+import { CheckIcon, ClockIcon, ConfirmDialog, FindingCard, formatDate, HighlightedPoem, Loading, RestoreDialog, TopBar, TrashIcon } from "../components/ui";
 import type { CheckRun } from "../lib/types";
 
 export default function ResultPage() {
@@ -13,10 +13,12 @@ export default function ResultPage() {
   const { data: rev, loading } = useRevision(tankaId, revisionId);
   const { data: runs } = useCheckRuns(tankaId, revisionId);
   const { data: parentRuns } = useCheckRuns(tankaId, rev?.parentRevisionId);
+  const { data: restoredFrom } = useRevision(tankaId, rev?.restoredFromRevisionId);
   const { data: feedback } = useFeedback(tankaId);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmRestore, setConfirmRestore] = useState(false);
   const navigate = useNavigate();
 
   if (loading) return <Loading />;
@@ -46,6 +48,21 @@ export default function ResultPage() {
       await recheck(tankaId, rev!.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "再チェックできませんでした");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function restore() {
+    setBusy("restore");
+    setError(null);
+    try {
+      const res = await restoreRevision(tankaId, rev!.id);
+      setConfirmRestore(false);
+      navigate(`/t/${tankaId}/r/${res.revisionId}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "戻せませんでした");
+      setConfirmRestore(false);
     } finally {
       setBusy(null);
     }
@@ -81,7 +98,7 @@ export default function ResultPage() {
         back="/"
         backLabel="一覧に戻る"
         title={`第${rev.revisionNo}稿`}
-        sub={`${formatDate(rev.createdAt)} 保存`}
+        sub={restoredFrom ? `${formatDate(rev.createdAt)} · 第${restoredFrom.revisionNo}稿に戻した` : `${formatDate(rev.createdAt)} 保存`}
         right={
           <>
             <Link to={`/t/${tankaId}/history`} className="text-link-btn">
@@ -197,8 +214,25 @@ export default function ResultPage() {
         <Link to={`/t/${tankaId}/edit?from=${rev.id}`} className="btn-primary">
           この稿から推敲する
         </Link>
-        {!isLatest && <span className="small muted" style={{ textAlign: "center" }}>この稿は最新ではありません。ここから枝分かれして推敲できます。</span>}
+        {tanka && !isLatest && (
+          <>
+            <button type="button" className="btn-secondary" disabled={busy === "restore"} onClick={() => setConfirmRestore(true)}>
+              この稿に戻す
+            </button>
+            <span className="small muted" style={{ textAlign: "center" }}>この稿はいまの稿ではありません。ここから枝分かれして推敲するか、この稿に戻していまの稿にできます。</span>
+          </>
+        )}
       </div>
+      {confirmRestore && (
+        <RestoreDialog
+          revisionNo={rev.revisionNo}
+          nextNo={tanka?.nextRevisionNo ?? rev.revisionNo + 1}
+          body={rev.bodyNormalized}
+          busy={busy === "restore"}
+          onConfirm={restore}
+          onCancel={() => setConfirmRestore(false)}
+        />
+      )}
     </>
   );
 }

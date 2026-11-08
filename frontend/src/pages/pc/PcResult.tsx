@@ -8,7 +8,7 @@ import { loadSettings } from "../../lib/settings";
 import { findingsOf, findingTimeline } from "../../lib/timeline";
 import type { CheckRun, Finding } from "../../lib/types";
 import { PcShell, PcTally, VerticalPoem } from "../../components/pc";
-import { BackIcon, CheckIcon, ConfirmDialog, formatDate, Loading, SeverityBadge, TransitionBadge, TrashIcon } from "../../components/ui";
+import { BackIcon, CheckIcon, ConfirmDialog, formatDate, Loading, RestoreDialog, SeverityBadge, TransitionBadge, TrashIcon } from "../../components/ui";
 
 type Mode = "list" | "finding" | "hidden";
 
@@ -26,6 +26,7 @@ export default function PcResult({ mode, revisionIdOverride }: { mode: Mode; rev
   const runsByRev = useRunsByRevision(tankaId, revisions.map((r) => r.id));
   const actions = useRevisionActions(tankaId, revisionId);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmRestore, setConfirmRestore] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
 
   if (loading) return <PcShell activeTankaId={tankaId}><Loading /></PcShell>;
@@ -37,6 +38,8 @@ export default function PcResult({ mode, revisionIdOverride }: { mode: Mode; rev
   const revisionCount = tanka?.latestRevisionNo ?? rev.revisionNo;
   const timeline = (fp: string) => findingTimeline(revisions, runsByRev, fp, rev.revisionNo);
   const current = selected ?? s.visible[0]?.fingerprint ?? null;
+  const isCurrent = tanka?.currentRevisionId === rev.id;
+  const restoredFrom = rev.restoredFromRevisionId ? revisions.find((r) => r.id === rev.restoredFromRevisionId) : undefined;
 
   let aside;
   if (mode === "finding" && fingerprint) {
@@ -119,6 +122,7 @@ export default function PcResult({ mode, revisionIdOverride }: { mode: Mode; rev
           <h1>第{rev.revisionNo}稿</h1>
           <span className="meta">
             {formatDate(rev.createdAt)}
+            {restoredFrom && ` · 第${restoredFrom.revisionNo}稿に戻した`}
             {rev.note && ` · メモ：${rev.note}`}
           </span>
         </div>
@@ -130,6 +134,9 @@ export default function PcResult({ mode, revisionIdOverride }: { mode: Mode; rev
             </button>
           )}
           <Link to={`/t/${tankaId}/history`} className="pc-btn">履歴と比較</Link>
+          {tanka && !isCurrent && (
+            <button type="button" className="pc-btn" disabled={actions.busy === "restore"} onClick={() => setConfirmRestore(true)}>この稿に戻す</button>
+          )}
           <Link to={`/t/${tankaId}/edit?from=${rev.id}`} className="pc-btn primary">この稿から推敲する</Link>
         </div>
       </div>
@@ -143,6 +150,19 @@ export default function PcResult({ mode, revisionIdOverride }: { mode: Mode; rev
         ) : (
           <PcTally counts={s.counts} />
         ))}
+      {confirmRestore && (
+        <RestoreDialog
+          revisionNo={rev.revisionNo}
+          nextNo={tanka?.nextRevisionNo ?? rev.revisionNo + 1}
+          body={rev.bodyNormalized}
+          busy={actions.busy === "restore"}
+          onConfirm={async () => {
+            await actions.restore();
+            setConfirmRestore(false);
+          }}
+          onCancel={() => setConfirmRestore(false)}
+        />
+      )}
       {confirmDelete && (
         <ConfirmDialog
           title="この短歌を削除しますか？"

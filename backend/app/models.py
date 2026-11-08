@@ -88,6 +88,7 @@ class Revision(Model):
     segments: list[Segment]
     tokens: list[Token]
     note: str | None = None
+    restoredFromRevisionId: str | None = None  # 「この稿に戻す」で作った稿なら、戻した先の稿（＝親）
     createdAt: datetime
 
 

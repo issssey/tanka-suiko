@@ -245,6 +245,10 @@ def api_router() -> APIRouter:
         )
         return _save_response(res)
 
+    @r.post("/tankas/{tanka_id}/revisions/{revision_id}/restore", status_code=status.HTTP_201_CREATED)
+    def restore(tanka_id: str, revision_id: str, user: str = Depends(current_user), s: Service = Depends(svc)):
+        return _save_response(s.restore_revision(user, tanka_id, revision_id))
+
     @r.post("/tankas/{tanka_id}/revisions/{revision_id}/recheck", status_code=status.HTTP_201_CREATED)
     def recheck(tanka_id: str, revision_id: str, user: str = Depends(current_user), s: Service = Depends(svc)):
         return _save_response(s.recheck(user, tanka_id, revision_id))
