@@ -192,7 +192,7 @@ export function PublishAndSequenceSection({ tanka, rev, pc }: { tanka: Tanka; re
         const no = publishedRevisionNo(p, tanka.id);
         const what = p.sequenceId ? `連作「${p.sequenceTitle || "無題"}」で第${no}稿を出した` : `第${no}稿を出した`;
         return (
-          <Link key={p.id} to="/publications" className="linked-row">
+          <Link key={p.id} to={`/publications/${p.id}`} className="linked-row">
             <span className="chip outline-accent" style={{ flexShrink: 0 }}>発表済み</span>
             <span className="what">
               <span className="t">{p.destination}</span>

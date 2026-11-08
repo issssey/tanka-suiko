@@ -32,16 +32,38 @@ function fromDoc<T>(id: string, data: DocumentData): T {
   return { ...(convert(data) as object), id } as T;
 }
 
-function useSnapshot<T>(subscribe: ((set: (v: T) => void, fail: (e: Error) => void) => () => void) | null, initial: T, deps: unknown[]): Loadable<T> {
-  const [state, setState] = useState<Loadable<T>>({ data: initial, loading: subscribe !== null, error: null });
+// 一度読んだ結果を覚えておく。画面を移って戻ったとき、「読み込み中」を挟まずにすぐ出して、裏で最新にする
+const cache = new Map<string, unknown>();
+
+/** ログアウトしたら覚えた結果を捨てる。 */
+export function clearSnapshotCache() {
+  cache.clear();
+}
+
+function useSnapshot<T>(
+  name: string,
+  subscribe: ((set: (v: T) => void, fail: (e: Error) => void) => () => void) | null,
+  initial: T,
+  deps: unknown[],
+): Loadable<T> {
+  const key = `${name}:${JSON.stringify(deps)}`;
+  const [state, setState] = useState<Loadable<T>>(() =>
+    subscribe && cache.has(key)
+      ? { data: cache.get(key) as T, loading: false, error: null }
+      : { data: initial, loading: subscribe !== null, error: null },
+  );
   useEffect(() => {
     if (!subscribe) {
       setState({ data: initial, loading: false, error: null });
       return;
     }
-    setState((s) => ({ ...s, loading: true }));
+    if (cache.has(key)) setState({ data: cache.get(key) as T, loading: false, error: null });
+    else setState((s) => ({ ...s, loading: true }));
     return subscribe(
-      (data) => setState({ data, loading: false, error: null }),
+      (data) => {
+        cache.set(key, data);
+        setState({ data, loading: false, error: null });
+      },
       (error) => setState((s) => ({ ...s, loading: false, error })),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -51,6 +73,7 @@ function useSnapshot<T>(subscribe: ((set: (v: T) => void, fail: (e: Error) => vo
 
 export function useTankas(uid: string | undefined): Loadable<Tanka[]> {
   return useSnapshot<Tanka[]>(
+    "useTankas",
     uid
       ? (set, fail) =>
           onSnapshot(
@@ -72,6 +95,7 @@ export function useTankas(uid: string | undefined): Loadable<Tanka[]> {
 
 export function useTanka(tankaId: string | undefined): Loadable<Tanka | null> {
   return useSnapshot<Tanka | null>(
+    "useTanka",
     tankaId
       ? (set, fail) =>
           onSnapshot(doc(db, "tankas", tankaId), (d) => set(d.exists() ? fromDoc<Tanka>(d.id, d.data()) : null), fail)
@@ -83,6 +107,7 @@ export function useTanka(tankaId: string | undefined): Loadable<Tanka | null> {
 
 export function useRevision(tankaId: string | undefined, revisionId: string | null | undefined): Loadable<Revision | null> {
   return useSnapshot<Revision | null>(
+    "useRevision",
     tankaId && revisionId
       ? (set, fail) =>
           onSnapshot(
@@ -98,6 +123,7 @@ export function useRevision(tankaId: string | undefined, revisionId: string | nu
 
 export function useRevisions(tankaId: string | undefined): Loadable<Revision[]> {
   return useSnapshot<Revision[]>(
+    "useRevisions",
     tankaId
       ? (set, fail) =>
           onSnapshot(
@@ -113,6 +139,7 @@ export function useRevisions(tankaId: string | undefined): Loadable<Revision[]> 
 
 export function useCheckRuns(tankaId: string | undefined, revisionId: string | null | undefined): Loadable<CheckRun[]> {
   return useSnapshot<CheckRun[]>(
+    "useCheckRuns",
     tankaId && revisionId
       ? (set, fail) =>
           onSnapshot(
@@ -151,6 +178,7 @@ export function useRunsByRevision(tankaId: string | undefined, revisionIds: stri
 
 export function useFeedback(tankaId: string | undefined): Loadable<Feedback[]> {
   return useSnapshot<Feedback[]>(
+    "useFeedback",
     tankaId
       ? (set, fail) =>
           onSnapshot(
@@ -167,6 +195,7 @@ export function useFeedback(tankaId: string | undefined): Loadable<Feedback[]> {
 // --- 連作と発表記録（自分のものだけ。ルールで authorId を確かめるので where を必ず付ける） ---
 export function useSequences(uid: string | undefined): Loadable<Sequence[]> {
   return useSnapshot<Sequence[]>(
+    "useSequences",
     uid
       ? (set, fail) =>
           onSnapshot(
@@ -182,6 +211,7 @@ export function useSequences(uid: string | undefined): Loadable<Sequence[]> {
 
 export function useSequence(sequenceId: string | undefined): Loadable<Sequence | null> {
   return useSnapshot<Sequence | null>(
+    "useSequence",
     sequenceId
       ? (set, fail) =>
           onSnapshot(doc(db, "sequences", sequenceId), (d) => set(d.exists() ? fromDoc<Sequence>(d.id, d.data()) : null), fail)
@@ -193,6 +223,7 @@ export function useSequence(sequenceId: string | undefined): Loadable<Sequence |
 
 export function usePublications(uid: string | undefined): Loadable<Publication[]> {
   return useSnapshot<Publication[]>(
+    "usePublications",
     uid
       ? (set, fail) =>
           onSnapshot(
@@ -208,6 +239,7 @@ export function usePublications(uid: string | undefined): Loadable<Publication[]
 
 export function usePublication(publicationId: string | undefined): Loadable<Publication | null> {
   return useSnapshot<Publication | null>(
+    "usePublication",
     publicationId
       ? (set, fail) =>
           onSnapshot(doc(db, "publications", publicationId), (d) => set(d.exists() ? fromDoc<Publication>(d.id, d.data()) : null), fail)
@@ -220,6 +252,7 @@ export function usePublication(publicationId: string | undefined): Loadable<Publ
 /** その短歌を含む発表記録（稿が違っても）。 */
 export function useTankaPublications(uid: string | undefined, tankaId: string | undefined): Loadable<Publication[]> {
   return useSnapshot<Publication[]>(
+    "useTankaPublications",
     uid && tankaId
       ? (set, fail) =>
           onSnapshot(
@@ -241,6 +274,7 @@ export function useTankaPublications(uid: string | undefined, tankaId: string | 
 /** 出し先の候補（最近使った順）。 */
 export function useDestinations(uid: string | undefined): Loadable<string[]> {
   return useSnapshot<string[]>(
+    "useDestinations",
     uid
       ? (set, fail) =>
           onSnapshot(doc(db, "users", uid), (d) => set(((d.exists() && d.data().destinations) || []) as string[]), fail)

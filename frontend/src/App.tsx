@@ -25,6 +25,8 @@ import SequencesPage from "./pages/Sequences";
 import SequencePage from "./pages/Sequence";
 import PublicationsPage from "./pages/Publications";
 import PublishPage from "./pages/Publish";
+import PublicationPage from "./pages/Publication";
+import PcPublication from "./pages/pc/PcPublication";
 import PcSequences from "./pages/pc/PcSequences";
 import PcPublications from "./pages/pc/PcPublications";
 import PcPublish from "./pages/pc/PcPublish";
@@ -58,6 +60,7 @@ function Screens() {
         <Route path="/sequences" element={auth(pick(<SequencesPage />, <PcSequences />))} />
         <Route path="/sequences/:sequenceId" element={auth(pick(<SequencePage />, <PcSequences />))} />
         <Route path="/publications" element={auth(pick(<PublicationsPage />, <PcPublications />))} />
+        <Route path="/publications/:publicationId" element={auth(pick(<PublicationPage />, <PcPublication />))} />
         <Route path="/publish" element={auth(pick(<PublishPage />, <PcPublish />))} />
         <Route path="/publications/:publicationId/edit" element={auth(pick(<PublishPage key="edit" />, <PcPublish key="edit" />))} />
         <Route path="/settings" element={auth(pick(<SettingsPage />, <PcSettings />))} />

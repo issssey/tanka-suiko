@@ -82,8 +82,12 @@ export function PublishForm({ pc }: { pc?: boolean }) {
     setError(null);
     const fields = { destination: destination.trim(), submittedOn, note: note.trim() || null };
     try {
-      if (editing && existing) await updatePublication(existing.id, fields);
-      else if (mode === "tanka") await createPublication({ ...fields, items: [{ tankaId: tankaId!, revisionId: revId! }] });
+      if (editing && existing) {
+        await updatePublication(existing.id, fields);
+        navigate(`/publications/${existing.id}`, { replace: true });
+        return;
+      }
+      if (mode === "tanka") await createPublication({ ...fields, items: [{ tankaId: tankaId!, revisionId: revId! }] });
       else await createPublication({ ...fields, sequenceId: seq!.id });
       navigate("/publications", { replace: true });
     } catch (err) {

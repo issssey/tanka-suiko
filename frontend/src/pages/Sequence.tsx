@@ -35,7 +35,8 @@ function SequenceEditor({ seqId }: { seqId: string }) {
         歌を加える
       </button>
       {ed.error && <p className="error">{ed.error}</p>}
-      <div className="footer-bar" style={{ marginTop: 24 }}>
+      {/* 下に固定せず、歌の並びの後に置く（固定すると画面の下を大きく取ってしまう） */}
+      <div className="seq-footer">
         {/* 作って終わりにしてよい。出すのは仕上がってからなので、控えめなボタンにする */}
         {ed.items.length > 0 ? (
           <Link to={`/publish?s=${seq.id}`} className="btn-secondary">この連作を出す（発表を記録）</Link>
@@ -43,7 +44,7 @@ function SequenceEditor({ seqId }: { seqId: string }) {
           <button type="button" className="btn-secondary" disabled>この連作を出す（発表を記録）</button>
         )}
         <p className="hint" style={{ textAlign: "center" }}>仕上がったら、出したときに記録します</p>
-        <button type="button" className="text-btn danger" style={{ alignSelf: "center", height: 40 }} onClick={() => setConfirmDelete(true)}>
+        <button type="button" className="text-btn danger" style={{ alignSelf: "center" }} onClick={() => setConfirmDelete(true)}>
           連作を削除（中の短歌は消えません）
         </button>
       </div>

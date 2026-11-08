@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, type User } from "firebase/auth";
 import { auth } from "./firebase";
+import { clearSnapshotCache } from "./data";
 
 interface AuthState {
   user: User | null;
@@ -27,5 +28,6 @@ export function signInWithGoogle() {
 }
 
 export function logout() {
+  clearSnapshotCache();
   return signOut(auth);
 }
