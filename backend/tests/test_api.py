@@ -86,9 +86,54 @@ def test_refuses_dev_settings_on_cloud_run():
 
     with pytest.raises(UnsafeConfiguration):
         check_production_safety(Settings(), {"K_SERVICE": "tanka-api"})
-    ok = Settings(auth_mode="firebase", repository="firestore", tasks_mode="cloudtasks", firebase_project_id="p")
+    ok = Settings(
+        auth_mode="firebase", repository="firestore", tasks_mode="cloudtasks", firebase_project_id="p",
+        worker_url="https://w", tasks_service_account="sa@x",
+    )
     check_production_safety(ok, {"K_SERVICE": "tanka-api"})
     check_production_safety(Settings(), {})  # ローカルでは何もしない
+
+
+def test_refuses_emulator_on_cloud_run():
+    import pytest
+
+    from app.config import Settings, UnsafeConfiguration, check_production_safety
+
+    ok = Settings(app_role="api", auth_mode="firebase", repository="firestore", tasks_mode="cloudtasks", firebase_project_id="p")
+    with pytest.raises(UnsafeConfiguration, match="FIREBASE_AUTH_EMULATOR_HOST"):
+        check_production_safety(ok, {"K_SERVICE": "tanka-api", "FIREBASE_AUTH_EMULATOR_HOST": "localhost:9099"})
+
+
+def test_requires_worker_auth_settings_on_cloud_run():
+    import pytest
+
+    from app.config import Settings, UnsafeConfiguration, check_production_safety
+
+    base = dict(auth_mode="firebase", repository="firestore", tasks_mode="cloudtasks", firebase_project_id="p")
+    env = {"K_SERVICE": "tanka-worker"}
+    for role in ("worker", "all"):
+        with pytest.raises(UnsafeConfiguration, match="WORKER_AUDIENCE"):
+            check_production_safety(Settings(app_role=role, tasks_service_account="sa@x", **base), env)
+        with pytest.raises(UnsafeConfiguration, match="TASKS_SERVICE_ACCOUNT"):
+            check_production_safety(Settings(app_role=role, worker_url="https://w", **base), env)
+        check_production_safety(Settings(app_role=role, worker_url="https://w", tasks_service_account="sa@x", **base), env)
+    check_production_safety(Settings(app_role="api", **base), env)  # API はワーカーのルートを持たない
+
+
+def test_worker_rejects_when_auth_not_configured():
+    import pytest
+    from fastapi import HTTPException
+
+    from app.auth import verify_tasks_caller
+    from app.config import Settings
+
+    for s in (
+        Settings(auth_mode="firebase", tasks_service_account="sa@x"),
+        Settings(auth_mode="firebase", worker_url="https://w"),
+    ):
+        with pytest.raises(HTTPException) as e:
+            verify_tasks_caller("Bearer x", s)
+        assert e.value.status_code == 503
 
 
 def test_health_endpoints(service):
