@@ -59,14 +59,18 @@ def current_user(authorization: str | None = Header(default=None), settings: Set
 def verify_tasks_caller(authorization: str | None = Header(default=None), settings: Settings = Depends(get_settings)) -> None:
     if settings.auth_mode == "dev":
         return
+    audience = settings.worker_audience or settings.worker_url
+    if not audience or not settings.tasks_service_account:
+        # audience=None だと google-auth は audience を確かめない。設定がなければ通さない
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "ワーカーの認証が設定されていません")
     token = _bearer(authorization)
     from google.oauth2 import id_token
 
     try:
-        claims = id_token.verify_oauth2_token(token, _google_request(), audience=settings.worker_audience or settings.worker_url)
+        claims = id_token.verify_oauth2_token(token, _google_request(), audience=audience)
     except ValueError as e:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "トークンが無効です") from e
-    if settings.tasks_service_account and claims.get("email") != settings.tasks_service_account:
+    if claims.get("email") != settings.tasks_service_account:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "呼び出し元が許可されていません")
 
 

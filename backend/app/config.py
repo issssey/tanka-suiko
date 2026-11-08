@@ -62,6 +62,15 @@ def check_production_safety(settings: Settings, environ: dict[str, str] | None =
         problems.append("TASKS_MODE は cloudtasks にしてください")
     if not settings.firebase_project_id:
         problems.append("FIREBASE_PROJECT_ID を設定してください")
+    if env.get("FIREBASE_AUTH_EMULATOR_HOST"):
+        # 設定されていると、IDトークンの署名を検証しなくなる（auth._verify_firebase）
+        problems.append("FIREBASE_AUTH_EMULATOR_HOST は本番では設定しないでください")
+    if settings.app_role in ("worker", "all"):
+        # 空だと Cloud Tasks のトークンの audience や発行元を確かめられない（auth.verify_tasks_caller）
+        if not (settings.worker_audience or settings.worker_url):
+            problems.append("WORKER_AUDIENCE（または WORKER_URL）を設定してください")
+        if not settings.tasks_service_account:
+            problems.append("TASKS_SERVICE_ACCOUNT を設定してください")
     if problems:
         raise UnsafeConfiguration("本番の設定に問題があります: " + " / ".join(problems))
 
