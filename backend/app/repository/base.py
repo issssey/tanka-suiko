@@ -6,6 +6,8 @@
     revisions/{revisionId}                      … 保存後は変更しない
       checkRuns/{runId}                         … findings を配列で持つ
     feedback/{fingerprint}                      … 作者の判断（短歌単位）
+  sequences/{sequenceId}                        … 連作。tankas.sequenceIds を同じトランザクションで更新
+  publications/{publicationId}                  … 発表記録。tankas.publishedCount と users.destinations も同時に更新
 
 削除は短歌単位のみ。deletedAt を立ててから配下をまとめて消す。
 削除中・削除済みの短歌には書き込まない（*_if_active はトランザクションで確かめてから書く）。
@@ -16,7 +18,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Protocol
 
-from ..models import CheckRun, Feedback, Revision, Tanka
+from ..models import CheckRun, Feedback, Publication, Revision, Sequence, Tanka
 
 
 class NotFound(LookupError):
@@ -77,4 +79,54 @@ class Repository(Protocol):
 
     def delete_user_data(self, user_id: str) -> None:
         """users/{uid} を消す。"""
+        ...
+
+    # --- 連作 ---
+    def create_sequence(self, seq: Sequence) -> Sequence:
+        """連作を作り、中の短歌の sequenceIds に加える。削除中の短歌が含まれていれば NotFound。"""
+        ...
+
+    def update_sequence(self, seq: Sequence) -> Sequence:
+        """題・並び・メモを置き換え、外れた短歌・加わった短歌の sequenceIds を直す。"""
+        ...
+
+    def delete_sequence(self, sequence_id: str) -> None:
+        """連作を消し、中の短歌の sequenceIds から外す。何度呼んでもよい。"""
+        ...
+
+    def get_sequence(self, sequence_id: str) -> Sequence: ...
+
+    def list_sequences_by_author(self, author_id: str) -> list[Sequence]:
+        """updatedAt の新しい順に返す。"""
+        ...
+
+    def remove_tanka_from_sequence(self, sequence_id: str, tanka_id: str) -> None:
+        """短歌の削除に伴い、連作からその歌を外す。連作がなければ何もしない。"""
+        ...
+
+    # --- 発表記録 ---
+    def create_publication(self, pub: Publication) -> Publication:
+        """記録を作り、中の短歌の publishedCount を増やし、出し先の候補を更新する。"""
+        ...
+
+    def update_publication(self, pub: Publication) -> Publication:
+        """出し先・出した日・フリーテキストを置き換え、出し先の候補を更新する。"""
+        ...
+
+    def delete_publication(self, publication_id: str) -> None:
+        """記録を消し、中の短歌の publishedCount を減らす。何度呼んでもよい。"""
+        ...
+
+    def get_publication(self, publication_id: str) -> Publication: ...
+
+    def list_publications_by_author(self, author_id: str) -> list[Publication]:
+        """出した日の新しい順に返す。"""
+        ...
+
+    def list_publications_by_tanka(self, author_id: str, tanka_id: str) -> list[Publication]:
+        """その短歌を含む記録（tankaIds の array-contains）を出した日の新しい順に返す。"""
+        ...
+
+    def get_destinations(self, user_id: str) -> list[str]:
+        """出し先の候補（最近使った順）。"""
         ...

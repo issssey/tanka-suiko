@@ -74,6 +74,8 @@ class Tanka(Model):
     createdAt: datetime
     updatedAt: datetime
     deletedAt: datetime | None = None  # 削除処理中の目印
+    publishedCount: int = 0  # 発表記録の件数（発表記録の書き込みと同じトランザクションで更新）
+    sequenceIds: list[str] = Field(default_factory=list)  # 入っている連作（連作の書き込みと同じトランザクションで更新）
 
 
 class Revision(Model):
@@ -115,3 +117,50 @@ class Feedback(Model):
     comment: str | None = None
     revisionNo: int | None = None  # どの稿のチェック結果で設定したか（表示用）
     createdAt: datetime
+
+
+# --- 連作と発表 ---
+MAX_SEQUENCE_ITEMS = 100
+MAX_DESTINATIONS = 50
+
+
+class SequenceItem(Model):
+    tankaId: str
+    revisionId: str  # 入れた時点の稿。後で推敲しても自動では差し替えない
+
+
+class Sequence(Model):
+    """連作。題と歌の並びを持つ作品の単位。発表とは独立に作って直せる。"""
+
+    id: str
+    authorId: str
+    title: str = ""
+    items: list[SequenceItem] = Field(default_factory=list)
+    note: str | None = None
+    createdAt: datetime
+    updatedAt: datetime
+
+
+class PublicationItem(Model):
+    """出した時点の稿と本文の写し。短歌を削除しても、記録だけで何を出したか分かる。"""
+
+    tankaId: str
+    revisionId: str
+    revisionNo: int
+    body: str
+
+
+class Publication(Model):
+    """発表記録。どの稿を、どこに、いつ出したか。1首でも連作でも、1回出したら1件。"""
+
+    id: str
+    authorId: str
+    destination: str
+    submittedOn: str  # YYYY-MM-DD
+    note: str | None = None
+    sequenceId: str | None = None
+    sequenceTitle: str | None = None  # 出した時点の題の写し
+    items: list[PublicationItem]
+    tankaIds: list[str]  # 二重投稿の検索用（array-contains）
+    createdAt: datetime
+    updatedAt: datetime

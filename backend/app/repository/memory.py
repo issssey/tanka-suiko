@@ -7,7 +7,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from ..models import CheckRun, Feedback, Revision, Tanka
+from ..models import MAX_DESTINATIONS, CheckRun, Feedback, Publication, Revision, Sequence, Tanka
 from .base import NotFound
 
 
@@ -24,6 +24,9 @@ class MemoryRepository:
         self.feedback: dict[str, dict[str, Feedback]] = {}
         self.usage: dict[tuple[str, str], int] = {}
         self.users: set[str] = set()
+        self.sequences: dict[str, Sequence] = {}
+        self.publications: dict[str, Publication] = {}
+        self.destinations: dict[str, list[str]] = {}
 
     def _active(self, tanka_id: str) -> bool:
         t = self.tankas.get(tanka_id)
@@ -141,3 +144,123 @@ class MemoryRepository:
             self.users.discard(user_id)
             for key in [k for k in self.usage if k[0] == user_id]:
                 del self.usage[key]
+            self.destinations.pop(user_id, None)
+
+    # --- 連作 ---
+    def _set_sequence_ids(self, tanka_ids: set[str], seq_id: str, add: bool) -> None:
+        for tid in tanka_ids:
+            t = self.tankas.get(tid)
+            if t is None or t.deletedAt is not None:
+                continue
+            if add and seq_id not in t.sequenceIds:
+                t.sequenceIds.append(seq_id)
+            if not add and seq_id in t.sequenceIds:
+                t.sequenceIds.remove(seq_id)
+
+    def create_sequence(self, seq: Sequence) -> Sequence:
+        with self._lock:
+            ids = {i.tankaId for i in seq.items}
+            if not all(self._active(t) for t in ids):
+                raise NotFound("tanka")
+            seq = seq.model_copy(update={"id": seq.id or f"s_{uuid.uuid4().hex[:12]}"}, deep=True)
+            self.sequences[seq.id] = seq
+            self._set_sequence_ids(ids, seq.id, add=True)
+            return seq.model_copy(deep=True)
+
+    def update_sequence(self, seq: Sequence) -> Sequence:
+        with self._lock:
+            old = self.sequences.get(seq.id)
+            if old is None:
+                raise NotFound(seq.id)
+            before = {i.tankaId for i in old.items}
+            after = {i.tankaId for i in seq.items}
+            if not all(self._active(t) for t in after - before):
+                raise NotFound("tanka")
+            self.sequences[seq.id] = seq.model_copy(deep=True)
+            self._set_sequence_ids(before - after, seq.id, add=False)
+            self._set_sequence_ids(after - before, seq.id, add=True)
+            return seq.model_copy(deep=True)
+
+    def delete_sequence(self, sequence_id: str) -> None:
+        with self._lock:
+            old = self.sequences.pop(sequence_id, None)
+            if old is not None:
+                self._set_sequence_ids({i.tankaId for i in old.items}, sequence_id, add=False)
+
+    def get_sequence(self, sequence_id: str) -> Sequence:
+        with self._lock:
+            if sequence_id not in self.sequences:
+                raise NotFound(sequence_id)
+            return self.sequences[sequence_id].model_copy(deep=True)
+
+    def list_sequences_by_author(self, author_id: str) -> list[Sequence]:
+        with self._lock:
+            ss = [s for s in self.sequences.values() if s.authorId == author_id]
+            return [s.model_copy(deep=True) for s in sorted(ss, key=lambda s: s.updatedAt, reverse=True)]
+
+    def remove_tanka_from_sequence(self, sequence_id: str, tanka_id: str) -> None:
+        with self._lock:
+            seq = self.sequences.get(sequence_id)
+            if seq is None:
+                return
+            seq.items = [i for i in seq.items if i.tankaId != tanka_id]
+            seq.updatedAt = _now()
+            t = self.tankas.get(tanka_id)
+            if t is not None and sequence_id in t.sequenceIds:
+                t.sequenceIds.remove(sequence_id)
+
+    # --- 発表記録 ---
+    def _touch_destination(self, user_id: str, destination: str) -> None:
+        rest = [d for d in self.destinations.get(user_id, []) if d != destination]
+        self.destinations[user_id] = [destination, *rest][:MAX_DESTINATIONS]
+
+    def _add_published(self, tanka_ids: list[str], delta: int) -> None:
+        for tid in set(tanka_ids):
+            t = self.tankas.get(tid)
+            if t is not None and t.deletedAt is None:
+                t.publishedCount = max(0, t.publishedCount + delta)
+
+    def create_publication(self, pub: Publication) -> Publication:
+        with self._lock:
+            pub = pub.model_copy(update={"id": pub.id or f"p_{uuid.uuid4().hex[:12]}"}, deep=True)
+            self.publications[pub.id] = pub
+            self._add_published(pub.tankaIds, 1)
+            self._touch_destination(pub.authorId, pub.destination)
+            return pub.model_copy(deep=True)
+
+    def update_publication(self, pub: Publication) -> Publication:
+        with self._lock:
+            if pub.id not in self.publications:
+                raise NotFound(pub.id)
+            self.publications[pub.id] = pub.model_copy(deep=True)
+            self._touch_destination(pub.authorId, pub.destination)
+            return pub.model_copy(deep=True)
+
+    def delete_publication(self, publication_id: str) -> None:
+        with self._lock:
+            old = self.publications.pop(publication_id, None)
+            if old is not None:
+                self._add_published(old.tankaIds, -1)
+
+    def get_publication(self, publication_id: str) -> Publication:
+        with self._lock:
+            if publication_id not in self.publications:
+                raise NotFound(publication_id)
+            return self.publications[publication_id].model_copy(deep=True)
+
+    def _sorted_pubs(self, pubs) -> list[Publication]:
+        return [p.model_copy(deep=True) for p in sorted(pubs, key=lambda p: (p.submittedOn, p.createdAt), reverse=True)]
+
+    def list_publications_by_author(self, author_id: str) -> list[Publication]:
+        with self._lock:
+            return self._sorted_pubs(p for p in self.publications.values() if p.authorId == author_id)
+
+    def list_publications_by_tanka(self, author_id: str, tanka_id: str) -> list[Publication]:
+        with self._lock:
+            return self._sorted_pubs(
+                p for p in self.publications.values() if p.authorId == author_id and tanka_id in p.tankaIds
+            )
+
+    def get_destinations(self, user_id: str) -> list[str]:
+        with self._lock:
+            return list(self.destinations.get(user_id, []))

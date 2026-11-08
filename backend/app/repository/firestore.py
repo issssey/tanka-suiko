@@ -14,7 +14,7 @@ from typing import Any
 from google.cloud import firestore
 from google.cloud.firestore_v1.field_path import FieldPath
 
-from ..models import CheckRun, Feedback, Revision, Tanka
+from ..models import MAX_DESTINATIONS, CheckRun, Feedback, Publication, Revision, Sequence, Tanka
 from .base import NotFound
 
 
@@ -174,8 +174,8 @@ class FirestoreRepository:
             snap = ref.get(transaction=tx)
             usage = (snap.to_dict() or {}).get("asyncChecks", {}) if snap.exists else {}
             count = int(usage.get(day, 0)) + 1
-            # その日の分だけを残す（前日以前の回数は不要）
-            tx.set(ref, {"asyncChecks": {day: count}}, merge=False)
+            # その日の分だけを残す（前日以前の回数は不要）。asyncChecks だけを置き換え、出し先の候補は残す
+            tx.set(ref, {"asyncChecks": {day: count}}, merge=["asyncChecks"])
             return count
 
         return run(transaction)
@@ -203,3 +203,190 @@ class FirestoreRepository:
 
     def delete_user_data(self, user_id: str) -> None:
         self.db.collection("users").document(user_id).delete()
+
+    # --- 連作 ---
+    def _sequences(self):
+        return self.db.collection("sequences")
+
+    def _get_tankas(self, tx, tanka_ids) -> dict[str, Any]:
+        """トランザクション内で短歌を読む（書き込みより前に読む必要がある）。"""
+        return {tid: self._tanka(tid).get(transaction=tx) for tid in sorted(tanka_ids)}
+
+    def create_sequence(self, seq: Sequence) -> Sequence:
+        ref = self._sequences().document(seq.id) if seq.id else self._sequences().document()
+        seq = seq.model_copy(update={"id": ref.id})
+        ids = {i.tankaId for i in seq.items}
+        transaction = self.db.transaction()
+
+        @firestore.transactional
+        def run(tx) -> Sequence:
+            snaps = self._get_tankas(tx, ids)
+            if not all(self._is_active(sn) for sn in snaps.values()):
+                raise NotFound("tanka")
+            tx.create(ref, _dump(seq))
+            for tid in ids:
+                tx.update(self._tanka(tid), {"sequenceIds": firestore.ArrayUnion([ref.id])})
+            return seq
+
+        return run(transaction)
+
+    def update_sequence(self, seq: Sequence) -> Sequence:
+        ref = self._sequences().document(seq.id)
+        transaction = self.db.transaction()
+
+        @firestore.transactional
+        def run(tx) -> Sequence:
+            snap = ref.get(transaction=tx)
+            if not snap.exists:
+                raise NotFound(seq.id)
+            before = {i["tankaId"] for i in (snap.to_dict() or {}).get("items", [])}
+            after = {i.tankaId for i in seq.items}
+            snaps = self._get_tankas(tx, before ^ after)
+            if not all(self._is_active(snaps[t]) for t in after - before):
+                raise NotFound("tanka")
+            tx.set(ref, _dump(seq))
+            for tid in before - after:
+                if self._is_active(snaps[tid]):
+                    tx.update(self._tanka(tid), {"sequenceIds": firestore.ArrayRemove([seq.id])})
+            for tid in after - before:
+                tx.update(self._tanka(tid), {"sequenceIds": firestore.ArrayUnion([seq.id])})
+            return seq
+
+        return run(transaction)
+
+    def delete_sequence(self, sequence_id: str) -> None:
+        ref = self._sequences().document(sequence_id)
+        transaction = self.db.transaction()
+
+        @firestore.transactional
+        def run(tx) -> None:
+            snap = ref.get(transaction=tx)
+            if not snap.exists:
+                return
+            ids = {i["tankaId"] for i in (snap.to_dict() or {}).get("items", [])}
+            snaps = self._get_tankas(tx, ids)
+            tx.delete(ref)
+            for tid, sn in snaps.items():
+                if self._is_active(sn):
+                    tx.update(self._tanka(tid), {"sequenceIds": firestore.ArrayRemove([sequence_id])})
+
+        run(transaction)
+
+    def get_sequence(self, sequence_id: str) -> Sequence:
+        snap = self._sequences().document(sequence_id).get()
+        if not snap.exists:
+            raise NotFound(sequence_id)
+        return Sequence(id=snap.id, **snap.to_dict())
+
+    def list_sequences_by_author(self, author_id: str) -> list[Sequence]:
+        q = self._sequences().where(filter=firestore.FieldFilter("authorId", "==", author_id))
+        seqs = [Sequence(id=s.id, **s.to_dict()) for s in q.stream()]
+        return sorted(seqs, key=lambda s: s.updatedAt, reverse=True)
+
+    def remove_tanka_from_sequence(self, sequence_id: str, tanka_id: str) -> None:
+        ref = self._sequences().document(sequence_id)
+        tanka_ref = self._tanka(tanka_id)
+        transaction = self.db.transaction()
+
+        @firestore.transactional
+        def run(tx) -> None:
+            snap = ref.get(transaction=tx)
+            tanka_snap = tanka_ref.get(transaction=tx)
+            if snap.exists:
+                items = [i for i in (snap.to_dict() or {}).get("items", []) if i.get("tankaId") != tanka_id]
+                tx.update(ref, {"items": items, "updatedAt": _now()})
+            if tanka_snap.exists:
+                tx.update(tanka_ref, {"sequenceIds": firestore.ArrayRemove([sequence_id])})
+
+        run(transaction)
+
+    # --- 発表記録 ---
+    def _publications(self):
+        return self.db.collection("publications")
+
+    def _user(self, user_id: str):
+        return self.db.collection("users").document(user_id)
+
+    @staticmethod
+    def _touched(snap, destination: str) -> list[str]:
+        current = (snap.to_dict() or {}).get("destinations", []) if snap.exists else []
+        return [destination, *[d for d in current if d != destination]][:MAX_DESTINATIONS]
+
+    def create_publication(self, pub: Publication) -> Publication:
+        ref = self._publications().document(pub.id) if pub.id else self._publications().document()
+        pub = pub.model_copy(update={"id": ref.id})
+        user_ref = self._user(pub.authorId)
+        transaction = self.db.transaction()
+
+        @firestore.transactional
+        def run(tx) -> Publication:
+            user_snap = user_ref.get(transaction=tx)
+            snaps = self._get_tankas(tx, set(pub.tankaIds))
+            tx.create(ref, _dump(pub))
+            for tid, sn in snaps.items():
+                if self._is_active(sn):
+                    tx.update(self._tanka(tid), {"publishedCount": firestore.Increment(1)})
+            tx.set(user_ref, {"destinations": self._touched(user_snap, pub.destination)}, merge=True)
+            return pub
+
+        return run(transaction)
+
+    def update_publication(self, pub: Publication) -> Publication:
+        ref = self._publications().document(pub.id)
+        user_ref = self._user(pub.authorId)
+        transaction = self.db.transaction()
+
+        @firestore.transactional
+        def run(tx) -> Publication:
+            snap = ref.get(transaction=tx)
+            user_snap = user_ref.get(transaction=tx)
+            if not snap.exists:
+                raise NotFound(pub.id)
+            tx.set(ref, _dump(pub))
+            tx.set(user_ref, {"destinations": self._touched(user_snap, pub.destination)}, merge=True)
+            return pub
+
+        return run(transaction)
+
+    def delete_publication(self, publication_id: str) -> None:
+        ref = self._publications().document(publication_id)
+        transaction = self.db.transaction()
+
+        @firestore.transactional
+        def run(tx) -> None:
+            snap = ref.get(transaction=tx)
+            if not snap.exists:
+                return
+            snaps = self._get_tankas(tx, set((snap.to_dict() or {}).get("tankaIds", [])))
+            tx.delete(ref)
+            for tid, sn in snaps.items():
+                if self._is_active(sn):
+                    tx.update(self._tanka(tid), {"publishedCount": firestore.Increment(-1)})
+
+        run(transaction)
+
+    def get_publication(self, publication_id: str) -> Publication:
+        snap = self._publications().document(publication_id).get()
+        if not snap.exists:
+            raise NotFound(publication_id)
+        return Publication(id=snap.id, **snap.to_dict())
+
+    @staticmethod
+    def _sorted_pubs(pubs: list[Publication]) -> list[Publication]:
+        return sorted(pubs, key=lambda p: (p.submittedOn, p.createdAt), reverse=True)
+
+    def list_publications_by_author(self, author_id: str) -> list[Publication]:
+        q = self._publications().where(filter=firestore.FieldFilter("authorId", "==", author_id))
+        return self._sorted_pubs([Publication(id=s.id, **s.to_dict()) for s in q.stream()])
+
+    def list_publications_by_tanka(self, author_id: str, tanka_id: str) -> list[Publication]:
+        q = (
+            self._publications()
+            .where(filter=firestore.FieldFilter("authorId", "==", author_id))
+            .where(filter=firestore.FieldFilter("tankaIds", "array_contains", tanka_id))
+        )
+        return self._sorted_pubs([Publication(id=s.id, **s.to_dict()) for s in q.stream()])
+
+    def get_destinations(self, user_id: str) -> list[str]:
+        snap = self._user(user_id).get()
+        return list((snap.to_dict() or {}).get("destinations", [])) if snap.exists else []

@@ -13,7 +13,18 @@ from .checkers.base import CheckContext
 from .checkers.llm import LLMChecker, LLMError, prompt_version
 from .checkers.runner import apply_transitions, run_async, run_sync
 from .config import Settings
-from .models import CheckRun, Feedback, Finding, Revision, Tanka
+from .models import (
+    MAX_SEQUENCE_ITEMS,
+    CheckRun,
+    Feedback,
+    Finding,
+    Publication,
+    PublicationItem,
+    Revision,
+    Sequence,
+    SequenceItem,
+    Tanka,
+)
 from .patterns import PatternSet
 from .preprocess.pipeline import ConfirmedSegment, PreprocessResult, build_from_confirmed, preprocess
 from .repository.base import NotFound, Repository
@@ -312,16 +323,26 @@ class Service:
         """短歌を削除する。すべての稿・チェック結果・作者の判断をまとめて消す（元に戻せない）。
 
         1. deletedAt を立てる（一覧から即座に消え、以降の書き込みを拒否する目印）
-        2. 配下をまとめて消す
+        2. 連作からその歌を外し、配下をまとめて消す（発表記録は本文の写しとともに残す）
         3. 途中で失敗したら、削除のタスクを登録して再試行する
         """
         self._own_tanka(user_id, tanka_id)
         self.repo.mark_deleted(tanka_id, _now())
         self._purge_or_retry(tanka_id)
 
+    def _detach_and_purge(self, tanka_id: str) -> None:
+        """連作からその歌を外してから、短歌と配下を消す。発表記録は本文の写しとともに残す。"""
+        try:
+            tanka = self.repo.get_tanka(tanka_id)
+        except NotFound:
+            return
+        for sequence_id in tanka.sequenceIds:
+            self.repo.remove_tanka_from_sequence(sequence_id, tanka_id)
+        self.repo.purge_tanka(tanka_id)
+
     def _purge_or_retry(self, tanka_id: str) -> None:
         try:
-            self.repo.purge_tanka(tanka_id)
+            self._detach_and_purge(tanka_id)
         except Exception:
             log.exception("短歌の削除に失敗しました。再試行を登録します: %s", tanka_id)
             self.enqueuer.enqueue({"kind": "purge", "tankaId": tanka_id}, 30)
@@ -334,17 +355,143 @@ class Service:
             return
         if tanka.deletedAt is None:
             return  # 目印のない短歌は消さない
-        self.repo.purge_tanka(tanka_id)
+        self._detach_and_purge(tanka_id)
 
     def cleanup_deleted(self, older_than: timedelta = timedelta(minutes=10)) -> int:
         """deletedAt が立ったまま残っている短歌を消し直す（定期ジョブ）。"""
         ids = self.repo.list_deleted_tankas(_now() - older_than)
         for tanka_id in ids:
             try:
-                self.repo.purge_tanka(tanka_id)
+                self._detach_and_purge(tanka_id)
             except Exception:
                 log.exception("短歌の消し直しに失敗しました: %s", tanka_id)
         return len(ids)
+
+    # --- 連作 ---
+    def _own_sequence(self, user_id: str, sequence_id: str) -> Sequence:
+        seq = self.repo.get_sequence(sequence_id)
+        if seq.authorId != user_id:
+            raise Forbidden(sequence_id)
+        return seq
+
+    def _sequence_items(self, user_id: str, items: list[tuple[str, str | None]]) -> list[SequenceItem]:
+        """歌の並びを確かめる。稿を指定しなければ、その時点のいまの稿を入れる。"""
+        if len(items) > MAX_SEQUENCE_ITEMS:
+            raise BadRequest(f"1つの連作に入れられるのは{MAX_SEQUENCE_ITEMS}首までです")
+        tanka_ids = [t for t, _ in items]
+        if len(set(tanka_ids)) != len(tanka_ids):
+            raise BadRequest("同じ歌が2回入っています")
+        out = []
+        for tanka_id, revision_id in items:
+            try:
+                tanka = self._own_tanka(user_id, tanka_id)
+            except NotFound as e:
+                raise BadRequest("歌が見つかりません") from e
+            revision_id = revision_id or tanka.currentRevisionId
+            if revision_id is None:
+                raise BadRequest("まだ稿のない歌は入れられません")
+            try:
+                self.repo.get_revision(tanka_id, revision_id)
+            except NotFound as e:
+                raise BadRequest("稿が見つかりません") from e
+            out.append(SequenceItem(tankaId=tanka_id, revisionId=revision_id))
+        return out
+
+    def create_sequence(self, user_id: str, title: str, items: list[tuple[str, str | None]], note: str | None) -> Sequence:
+        now = _now()
+        seq = Sequence(id="", authorId=user_id, title=title.strip(), items=self._sequence_items(user_id, items),
+                       note=(note or "").strip() or None, createdAt=now, updatedAt=now)
+        try:
+            return self.repo.create_sequence(seq)
+        except NotFound as e:
+            raise BadRequest("歌が見つかりません") from e
+
+    def update_sequence(self, user_id: str, sequence_id: str, title: str, items: list[tuple[str, str | None]],
+                        note: str | None) -> Sequence:
+        seq = self._own_sequence(user_id, sequence_id)
+        updated = seq.model_copy(update={
+            "title": title.strip(),
+            "items": self._sequence_items(user_id, items),
+            "note": (note or "").strip() or None,
+            "updatedAt": _now(),
+        })
+        try:
+            return self.repo.update_sequence(updated)
+        except NotFound as e:
+            raise BadRequest("歌が見つかりません") from e
+
+    def delete_sequence(self, user_id: str, sequence_id: str) -> None:
+        """連作を削除する。中の短歌と発表記録は消えない。"""
+        self._own_sequence(user_id, sequence_id)
+        self.repo.delete_sequence(sequence_id)
+
+    # --- 発表記録 ---
+    def _own_publication(self, user_id: str, publication_id: str) -> Publication:
+        pub = self.repo.get_publication(publication_id)
+        if pub.authorId != user_id:
+            raise Forbidden(publication_id)
+        return pub
+
+    def check_publications(self, user_id: str, tanka_ids: list[str]) -> list[Publication]:
+        """二重投稿の確認。同じ短歌（稿が違っても）を含む発表記録を返す。"""
+        found: dict[str, Publication] = {}
+        for tanka_id in dict.fromkeys(tanka_ids):
+            for pub in self.repo.list_publications_by_tanka(user_id, tanka_id):
+                found[pub.id] = pub
+        return sorted(found.values(), key=lambda p: (p.submittedOn, p.createdAt), reverse=True)
+
+    def _publication_items(self, user_id: str, items: list[tuple[str, str]]) -> list[PublicationItem]:
+        out = []
+        for tanka_id, revision_id in items:
+            try:
+                self._own_tanka(user_id, tanka_id)
+                rev = self.repo.get_revision(tanka_id, revision_id)
+            except NotFound as e:
+                raise BadRequest("歌または稿が見つかりません") from e
+            out.append(PublicationItem(tankaId=tanka_id, revisionId=rev.id, revisionNo=rev.revisionNo,
+                                       body=rev.bodyNormalized))
+        return out
+
+    def create_publication(self, user_id: str, *, destination: str, submitted_on: str, note: str | None,
+                           items: list[tuple[str, str]] | None = None, sequence_id: str | None = None) -> Publication:
+        """発表を記録する。連作なら、その時点の題と中身（各歌の稿）を写す。"""
+        sequence_title = None
+        if sequence_id is not None:
+            try:
+                seq = self._own_sequence(user_id, sequence_id)
+            except NotFound as e:
+                raise BadRequest("連作が見つかりません") from e
+            items = [(i.tankaId, i.revisionId) for i in seq.items]
+            sequence_title = seq.title
+        if not items:
+            raise BadRequest("出した歌を選んでください")
+        if len(items) > MAX_SEQUENCE_ITEMS:
+            raise BadRequest(f"1回に記録できるのは{MAX_SEQUENCE_ITEMS}首までです")
+        pub_items = self._publication_items(user_id, items)
+        now = _now()
+        pub = Publication(
+            id="", authorId=user_id, destination=destination.strip(), submittedOn=submitted_on,
+            note=(note or "").strip() or None, sequenceId=sequence_id, sequenceTitle=sequence_title,
+            items=pub_items, tankaIds=list(dict.fromkeys(i.tankaId for i in pub_items)),
+            createdAt=now, updatedAt=now,
+        )
+        return self.repo.create_publication(pub)
+
+    def update_publication(self, user_id: str, publication_id: str, *, destination: str, submitted_on: str,
+                           note: str | None) -> Publication:
+        """出し先・出した日・フリーテキストを直す。中身の稿は直せない。"""
+        pub = self._own_publication(user_id, publication_id)
+        updated = pub.model_copy(update={
+            "destination": destination.strip(),
+            "submittedOn": submitted_on,
+            "note": (note or "").strip() or None,
+            "updatedAt": _now(),
+        })
+        return self.repo.update_publication(updated)
+
+    def delete_publication(self, user_id: str, publication_id: str) -> None:
+        self._own_publication(user_id, publication_id)
+        self.repo.delete_publication(publication_id)
 
     # --- アカウント ---
     def export_user(self, user_id: str) -> dict[str, Any]:
@@ -370,12 +517,18 @@ class Service:
                     for r in revisions
                 ],
             })
-        return {"exportedAt": _now().isoformat(), "tankas": tankas}
+        sequences = [s.model_dump(mode="json") for s in self.repo.list_sequences_by_author(user_id)]
+        publications = [p.model_dump(mode="json") for p in self.repo.list_publications_by_author(user_id)]
+        return {"exportedAt": _now().isoformat(), "tankas": tankas, "sequences": sequences, "publications": publications}
 
     def delete_account(self, user_id: str, delete_auth_user: Callable[[str], None]) -> None:
         """アカウント削除。すべての短歌を削除し、Firebase Authentication のユーザーも消す。"""
         for t in self.repo.list_tankas_by_author(user_id):
             self.repo.mark_deleted(t.id, _now())
             self._purge_or_retry(t.id)
+        for seq in self.repo.list_sequences_by_author(user_id):
+            self.repo.delete_sequence(seq.id)
+        for pub in self.repo.list_publications_by_author(user_id):
+            self.repo.delete_publication(pub.id)
         self.repo.delete_user_data(user_id)
         delete_auth_user(user_id)

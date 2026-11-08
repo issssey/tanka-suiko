@@ -218,3 +218,80 @@ def test_service_total_usage_key_is_accepted(repo):
 
     assert repo.increment_daily_usage(GLOBAL_USAGE_KEY, "2026-11-07") == 1
     assert repo.increment_daily_usage(GLOBAL_USAGE_KEY, "2026-11-07") == 2
+
+
+# --- 連作と発表 ---
+def _seq(author: str, items: list[tuple[str, str]], title: str = "駅の灯"):
+    from app.models import Sequence, SequenceItem
+
+    now = datetime.now(UTC)
+    return Sequence(id="", authorId=author, title=title, items=[SequenceItem(tankaId=t, revisionId=r) for t, r in items],
+                    createdAt=now, updatedAt=now)
+
+
+def _pub(author: str, items: list[tuple[str, str]], destination: str = "みなと新聞 歌壇", on: str = "2026-11-07"):
+    from app.models import Publication, PublicationItem
+
+    now = datetime.now(UTC)
+    return Publication(id="", authorId=author, destination=destination, submittedOn=on,
+                       items=[PublicationItem(tankaId=t, revisionId=r, revisionNo=1, body=BODY1) for t, r in items],
+                       tankaIds=list(dict.fromkeys(t for t, _ in items)), createdAt=now, updatedAt=now)
+
+
+def test_sequence_updates_tanka_sequence_ids(repo):
+    a, b, c = (repo.create_tanka("u1") for _ in range(3))
+    ra, rb, rc = (repo.create_revision(t.id, revision_data(BODY1), {}) for t in (a, b, c))
+    seq = repo.create_sequence(_seq("u1", [(a.id, ra.id), (b.id, rb.id)]))
+    assert seq.id
+    assert repo.get_tanka(a.id).sequenceIds == [seq.id] and repo.get_tanka(c.id).sequenceIds == []
+    # b を外して c を加える
+    seq2 = seq.model_copy(update={"items": [i for i in seq.items if i.tankaId == a.id] + _seq("u1", [(c.id, rc.id)]).items,
+                                  "title": "改題"})
+    repo.update_sequence(seq2)
+    got = repo.get_sequence(seq.id)
+    assert got.title == "改題" and [i.tankaId for i in got.items] == [a.id, c.id]
+    assert repo.get_tanka(b.id).sequenceIds == [] and repo.get_tanka(c.id).sequenceIds == [seq.id]
+    assert [s.id for s in repo.list_sequences_by_author("u1")] == [seq.id]
+    # 短歌の削除に伴って外す
+    repo.remove_tanka_from_sequence(seq.id, c.id)
+    assert [i.tankaId for i in repo.get_sequence(seq.id).items] == [a.id]
+    repo.delete_sequence(seq.id)
+    assert repo.get_tanka(a.id).sequenceIds == []
+    with pytest.raises(NotFound):
+        repo.get_sequence(seq.id)
+    repo.delete_sequence(seq.id)  # 何度呼んでもよい
+
+
+def test_sequence_refuses_deleted_tanka(repo):
+    t = repo.create_tanka("u1")
+    r = repo.create_revision(t.id, revision_data(BODY1), {})
+    repo.mark_deleted(t.id, datetime.now(UTC))
+    with pytest.raises(NotFound):
+        repo.create_sequence(_seq("u1", [(t.id, r.id)]))
+
+
+def test_publication_counts_and_destinations(repo):
+    a, b = repo.create_tanka("u1"), repo.create_tanka("u1")
+    ra, rb = repo.create_revision(a.id, revision_data(BODY1), {}), repo.create_revision(b.id, revision_data(BODY2), {})
+    repo.increment_daily_usage("u1", "2026-11-07")
+    p1 = repo.create_publication(_pub("u1", [(a.id, ra.id)], "みなと新聞 歌壇", "2026-11-07"))
+    p2 = repo.create_publication(_pub("u1", [(a.id, ra.id), (b.id, rb.id)], "短歌結社誌「潮」", "2026-11-08"))
+    assert repo.get_tanka(a.id).publishedCount == 2 and repo.get_tanka(b.id).publishedCount == 1
+    assert repo.get_destinations("u1") == ["短歌結社誌「潮」", "みなと新聞 歌壇"]
+    # 1日の回数を数えても、出し先の候補は消えない
+    repo.increment_daily_usage("u1", "2026-11-08")
+    assert repo.get_destinations("u1") == ["短歌結社誌「潮」", "みなと新聞 歌壇"]
+    assert [p.id for p in repo.list_publications_by_author("u1")] == [p2.id, p1.id]
+    assert [p.id for p in repo.list_publications_by_tanka("u1", b.id)] == [p2.id]
+    assert repo.list_publications_by_tanka("u2", a.id) == []
+    # 出し先を直すと、候補の先頭に来る
+    repo.update_publication(p1.model_copy(update={"destination": "みなと新聞 歌壇", "note": "入選"}))
+    assert repo.get_publication(p1.id).note == "入選"
+    assert repo.get_destinations("u1")[0] == "みなと新聞 歌壇"
+    repo.delete_publication(p2.id)
+    assert repo.get_tanka(a.id).publishedCount == 1 and repo.get_tanka(b.id).publishedCount == 0
+    repo.delete_publication(p2.id)  # 何度呼んでもよい
+    # 短歌を消しても記録は残る
+    repo.mark_deleted(a.id, datetime.now(UTC))
+    repo.purge_tanka(a.id)
+    assert repo.get_publication(p1.id).items[0].body == BODY1

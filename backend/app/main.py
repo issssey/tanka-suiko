@@ -105,6 +105,61 @@ class PurgeIn(BaseModel):
     tankaId: str
 
 
+# --- 連作と発表 ---
+MAX_TITLE = 100
+MAX_DESTINATION = 100
+MAX_NOTE = 500
+MAX_ITEMS = 100
+
+
+class SequenceItemIn(BaseModel):
+    tankaId: str = Field(min_length=1, max_length=100)
+    revisionId: str | None = Field(default=None, max_length=100)  # 省略したらいまの稿
+
+
+class SequenceIn(BaseModel):
+    title: str = Field(default="", max_length=MAX_TITLE)
+    items: list[SequenceItemIn] = Field(default_factory=list, max_length=MAX_ITEMS)
+    note: str | None = Field(default=None, max_length=MAX_NOTE)
+
+
+class PublicationItemIn(BaseModel):
+    tankaId: str = Field(min_length=1, max_length=100)
+    revisionId: str = Field(min_length=1, max_length=100)
+
+
+class PublicationFieldsIn(BaseModel):
+    destination: str = Field(min_length=1, max_length=MAX_DESTINATION)
+    submittedOn: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    note: str | None = Field(default=None, max_length=MAX_NOTE)
+
+    @field_validator("destination")
+    @classmethod
+    def _destination(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("出し先を入力してください")
+        return v
+
+    @field_validator("submittedOn")
+    @classmethod
+    def _date(cls, v: str) -> str:
+        from datetime import date
+
+        date.fromisoformat(v)  # 存在しない日付は ValueError
+        return v
+
+
+class PublicationIn(PublicationFieldsIn):
+    """稿のリストか sequenceId のどちらかを受け取る。"""
+
+    items: list[PublicationItemIn] | None = Field(default=None, max_length=MAX_ITEMS)
+    sequenceId: str | None = Field(default=None, max_length=100)
+
+
+class PublicationCheckIn(BaseModel):
+    tankaIds: list[str] = Field(min_length=1, max_length=MAX_ITEMS)
+
+
 # --- 組み立て ---------------------------------------------------------------
 
 
@@ -261,6 +316,48 @@ def api_router() -> APIRouter:
     @r.delete("/tankas/{tanka_id}/feedback/{fingerprint}", status_code=status.HTTP_204_NO_CONTENT)
     def delete_feedback(tanka_id: str, fingerprint: str, user: str = Depends(current_user), s: Service = Depends(svc)):
         s.delete_feedback(user, tanka_id, fingerprint)
+
+    # --- 連作 ---
+    @r.post("/sequences", status_code=status.HTTP_201_CREATED)
+    def create_sequence(body: SequenceIn, user: str = Depends(current_user), s: Service = Depends(svc)):
+        seq = s.create_sequence(user, body.title, [(i.tankaId, i.revisionId) for i in body.items], body.note)
+        return seq.model_dump(mode="json")
+
+    @r.put("/sequences/{sequence_id}")
+    def update_sequence(sequence_id: str, body: SequenceIn, user: str = Depends(current_user), s: Service = Depends(svc)):
+        seq = s.update_sequence(user, sequence_id, body.title, [(i.tankaId, i.revisionId) for i in body.items], body.note)
+        return seq.model_dump(mode="json")
+
+    @r.delete("/sequences/{sequence_id}", status_code=status.HTTP_204_NO_CONTENT)
+    def delete_sequence(sequence_id: str, user: str = Depends(current_user), s: Service = Depends(svc)):
+        s.delete_sequence(user, sequence_id)
+
+    # --- 発表記録 ---
+    @r.post("/publications/check")
+    def check_publications(body: PublicationCheckIn, user: str = Depends(current_user), s: Service = Depends(svc)):
+        return {"publications": [p.model_dump(mode="json") for p in s.check_publications(user, body.tankaIds)]}
+
+    @r.post("/publications", status_code=status.HTTP_201_CREATED)
+    def create_publication(body: PublicationIn, user: str = Depends(current_user), s: Service = Depends(svc)):
+        if (body.items is None) == (body.sequenceId is None):
+            raise HTTPException(422, "稿のリストか連作のどちらかを指定してください")
+        pub = s.create_publication(
+            user, destination=body.destination, submitted_on=body.submittedOn, note=body.note,
+            items=[(i.tankaId, i.revisionId) for i in body.items] if body.items is not None else None,
+            sequence_id=body.sequenceId,
+        )
+        return pub.model_dump(mode="json")
+
+    @r.put("/publications/{publication_id}")
+    def update_publication(publication_id: str, body: PublicationFieldsIn, user: str = Depends(current_user),
+                           s: Service = Depends(svc)):
+        pub = s.update_publication(user, publication_id, destination=body.destination,
+                                   submitted_on=body.submittedOn, note=body.note)
+        return pub.model_dump(mode="json")
+
+    @r.delete("/publications/{publication_id}", status_code=status.HTTP_204_NO_CONTENT)
+    def delete_publication(publication_id: str, user: str = Depends(current_user), s: Service = Depends(svc)):
+        s.delete_publication(user, publication_id)
 
     @r.get("/me/export")
     def export_me(user: str = Depends(current_user), s: Service = Depends(svc)):

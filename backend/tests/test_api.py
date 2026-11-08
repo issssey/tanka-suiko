@@ -170,3 +170,39 @@ def test_unreadable_input_returns_message(service):
     r = c.post(f"/tankas/{tid}/preprocess", json={"body": "あ" * 31}, headers=AUTH)
     assert r.status_code == 422
     assert r.json()["detail"].startswith("短歌として読み取れませんでした")
+
+
+def test_sequences_and_publications_api(service):
+    c = client(service)
+    tid = c.post("/tankas", headers=AUTH).json()["tankaId"]
+    body = "夕暮れの駅のホームの片隅で君を待つ間に涙こぼれて"
+    data = c.post(f"/tankas/{tid}/preprocess", json={"body": body}, headers=AUTH).json()
+    segs = [{"no": s["no"], "text": s["text"], "reading": s["reading"]} for s in data["segments"]]
+    rid = c.post(f"/tankas/{tid}/revisions", json={
+        "body": body, "segments": segs, "style": data["style"], "orthography": data["orthography"],
+    }, headers=AUTH).json()["revisionId"]
+
+    seq = c.post("/sequences", json={"title": "駅の灯", "items": [{"tankaId": tid}]}, headers=AUTH)
+    assert seq.status_code == 201, seq.text
+    sid = seq.json()["id"]
+    assert seq.json()["items"] == [{"tankaId": tid, "revisionId": rid}]
+    assert c.put(f"/sequences/{sid}", json={"title": "改題", "items": []}, headers=OTHER).status_code == 403
+    assert c.put(f"/sequences/{sid}", json={"title": "改題", "items": [{"tankaId": tid}]}, headers=AUTH).json()["title"] == "改題"
+
+    assert c.post("/publications/check", json={"tankaIds": [tid]}, headers=AUTH).json() == {"publications": []}
+    bad = c.post("/publications", json={"destination": "x", "submittedOn": "2026-02-30", "items": []}, headers=AUTH)
+    assert bad.status_code == 422
+    both = c.post("/publications", json={"destination": "x", "submittedOn": "2026-11-07"}, headers=AUTH)
+    assert both.status_code == 422
+    pub = c.post("/publications", json={"destination": "SNS", "submittedOn": "2026-11-07", "sequenceId": sid}, headers=AUTH)
+    assert pub.status_code == 201, pub.text
+    pid = pub.json()["id"]
+    assert pub.json()["sequenceTitle"] == "改題"
+    found = c.post("/publications/check", json={"tankaIds": [tid]}, headers=AUTH).json()["publications"]
+    assert [p["id"] for p in found] == [pid]
+    upd = c.put(f"/publications/{pid}", json={"destination": "SNS", "submittedOn": "2026-11-08", "note": "反応あり"}, headers=AUTH)
+    assert upd.status_code == 200 and upd.json()["note"] == "反応あり"
+    assert c.delete(f"/publications/{pid}", headers=OTHER).status_code == 403
+    assert c.delete(f"/publications/{pid}", headers=AUTH).status_code == 204
+    assert c.delete(f"/sequences/{sid}", headers=AUTH).status_code == 204
+    assert c.delete(f"/sequences/{sid}", headers=AUTH).status_code == 404

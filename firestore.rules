@@ -32,6 +32,17 @@ service cloud.firestore {
       }
     }
 
+    // 連作と発表記録。クライアントは自分のものを読み取るだけ（クエリは where("authorId", "==", uid) を付ける）
+    match /sequences/{sequenceId} {
+      allow read: if signedIn() && resource.data.authorId == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /publications/{publicationId} {
+      allow read: if signedIn() && resource.data.authorId == request.auth.uid;
+      allow write: if false;
+    }
+
     match /users/{uid} {
       allow read: if signedIn() && request.auth.uid == uid;
       allow write: if false;

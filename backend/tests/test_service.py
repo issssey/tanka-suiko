@@ -289,3 +289,98 @@ def test_oversized_prompt_is_not_sent(service, fake_llm, monkeypatch):
     run = [x for x in service.repo.list_check_runs(t.id, r.revision.id) if x.phase == "async"][0]
     assert run.status == "failed" and "長すぎる" in run.error
     assert fake_llm.calls == []
+
+
+# --- 連作と発表 ---
+def test_sequence_lifecycle(service):
+    t1 = service.create_tanka(USER)
+    r1 = save(service, t1.id, "夕暮れの駅のホームの片隅で君を待つ間に涙こぼれて")
+    t2 = service.create_tanka(USER)
+    r2 = save(service, t2.id, "夕暮れの駅のホームで寂しくて君からの文字何度も読み返す")
+    seq = service.create_sequence(USER, " 駅の灯 ", [(t1.id, None), (t2.id, None)], None)
+    assert seq.title == "駅の灯"
+    assert [(i.tankaId, i.revisionId) for i in seq.items] == [(t1.id, r1.revision.id), (t2.id, r2.revision.id)]
+    assert service.repo.get_tanka(t1.id).sequenceIds == [seq.id]
+    # 推敲しても連作の中身は変わらない
+    r1b = save(service, t1.id, "夕暮れの駅のホームの片隅で頬を伝う涙ひとり寂しく", parent=r1.revision.id)
+    assert service.repo.get_sequence(seq.id).items[0].revisionId == r1.revision.id
+    # 並べ替えと差し替え
+    seq = service.update_sequence(USER, seq.id, "駅の灯", [(t2.id, r2.revision.id), (t1.id, r1b.revision.id)], None)
+    assert [i.revisionId for i in seq.items] == [r2.revision.id, r1b.revision.id]
+
+    with pytest.raises(BadRequest):
+        service.update_sequence(USER, seq.id, "x", [(t1.id, None), (t1.id, None)], None)  # 同じ歌を2回
+    with pytest.raises(BadRequest):
+        service.update_sequence(USER, seq.id, "x", [(t1.id, "missing")], None)
+    with pytest.raises(Forbidden):
+        service.update_sequence("u2", seq.id, "x", [], None)
+    with pytest.raises(Forbidden):
+        service.create_sequence("u2", "x", [(t1.id, None)], None)  # 他人の歌は入れられない
+
+    # 短歌を削除すると連作から外れる
+    service.delete_tanka(USER, t1.id)
+    assert [i.tankaId for i in service.repo.get_sequence(seq.id).items] == [t2.id]
+    service.delete_sequence(USER, seq.id)
+    assert service.repo.get_tanka(t2.id).sequenceIds == []
+
+
+def test_sequence_item_limit(service, monkeypatch):
+    import app.service as svc_mod
+
+    monkeypatch.setattr(svc_mod, "MAX_SEQUENCE_ITEMS", 1)
+    t1, t2 = service.create_tanka(USER), service.create_tanka(USER)
+    save(service, t1.id, "夕暮れの駅のホームの片隅で君を待つ間に涙こぼれて")
+    save(service, t2.id, "夕暮れの駅のホームで寂しくて君からの文字何度も読み返す")
+    with pytest.raises(BadRequest):
+        service.create_sequence(USER, "x", [(t1.id, None), (t2.id, None)], None)
+
+
+def test_publication_lifecycle(service):
+    t1 = service.create_tanka(USER)
+    r1 = save(service, t1.id, "夕暮れの駅のホームの片隅で君を待つ間に涙こぼれて")
+    t2 = service.create_tanka(USER)
+    r2 = save(service, t2.id, "夕暮れの駅のホームで寂しくて君からの文字何度も読み返す")
+
+    assert service.check_publications(USER, [t1.id]) == []
+    p1 = service.create_publication(USER, destination=" みなと新聞 歌壇 ", submitted_on="2026-11-07", note="結果待ち",
+                                    items=[(t1.id, r1.revision.id)])
+    assert p1.destination == "みなと新聞 歌壇" and p1.items[0].revisionNo == 1
+    assert p1.items[0].body == r1.revision.bodyNormalized and p1.tankaIds == [t1.id]
+    assert service.repo.get_tanka(t1.id).publishedCount == 1
+
+    # 連作として出す：その時点の題と中身を写す
+    seq = service.create_sequence(USER, "駅の灯", [(t1.id, None), (t2.id, None)], None)
+    p2 = service.create_publication(USER, destination="青嶺短歌賞", submitted_on="2026-11-08", note=None,
+                                    sequence_id=seq.id)
+    assert p2.sequenceTitle == "駅の灯" and [i.revisionId for i in p2.items] == [r1.revision.id, r2.revision.id]
+    service.update_sequence(USER, seq.id, "改題", [(t2.id, None)], None)
+    assert service.repo.get_publication(p2.id).sequenceTitle == "駅の灯"  # 後で連作を直しても記録は変わらない
+
+    # 二重投稿の確認：稿が違っても同じ短歌なら返す
+    r1b = save(service, t1.id, "夕暮れの駅のホームの片隅で頬を伝う涙ひとり寂しく", parent=r1.revision.id)
+    assert [p.id for p in service.check_publications(USER, [t1.id])] == [p2.id, p1.id]
+    assert service.check_publications("u2", [t1.id]) == []
+    # 警告するだけで、記録はできる
+    service.create_publication(USER, destination="SNS", submitted_on="2026-11-09", note=None,
+                               items=[(t1.id, r1b.revision.id)])
+    assert service.repo.get_destinations(USER) == ["SNS", "青嶺短歌賞", "みなと新聞 歌壇"]
+
+    # 直せるのは出し先・日付・フリーテキストだけ
+    p1u = service.update_publication(USER, p1.id, destination="みなと新聞 歌壇", submitted_on="2026-11-07", note="入選")
+    assert p1u.note == "入選" and p1u.items == p1.items
+    with pytest.raises(Forbidden):
+        service.update_publication("u2", p1.id, destination="x", submitted_on="2026-11-07", note=None)
+    with pytest.raises(BadRequest):
+        service.create_publication(USER, destination="x", submitted_on="2026-11-07", note=None, items=[])
+    with pytest.raises(Forbidden):
+        service.create_publication("u2", destination="x", submitted_on="2026-11-07", note=None,
+                                   items=[(t1.id, r1.revision.id)])
+
+    # 短歌を削除しても発表記録は残る
+    service.delete_tanka(USER, t1.id)
+    assert service.repo.get_publication(p1.id).items[0].body == r1.revision.bodyNormalized
+    service.delete_publication(USER, p2.id)
+    assert service.repo.get_tanka(t2.id).publishedCount == 0
+
+    export = service.export_user(USER)
+    assert len(export["publications"]) == 2 and len(export["sequences"]) == 1
