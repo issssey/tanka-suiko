@@ -468,3 +468,11 @@ input[type="checkbox"] { accent-color: var(--accent); width: 20px; height: 20px;
 .save-status[data-state="saved"] svg { color: var(--accent); }
 .save-status[data-state="error"] { color: var(--high); }
 .btn-secondary[aria-disabled="true"], .btn-secondary:disabled { opacity: 0.55; cursor: default; }
+
+/* iPhone の Safari：16px 未満の入力欄はフォーカスで画面が拡大されるので 16px にする */
+.form-input, .form-textarea { font-size: 16px; }
+/* 日付の欄は Safari が独自の見た目で描き、幅がはみ出て文字が中央に寄る。ほかの欄にそろえる */
+.form-input[type="date"] { -webkit-appearance: none; appearance: none; display: block; min-width: 0; max-width: 100%; text-align: left; line-height: 46px; }
+.form-input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+/* ダブルタップでの拡大を止める（ピンチは main.tsx で止める） */
+html { touch-action: manipulation; }
