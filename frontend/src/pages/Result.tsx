@@ -4,9 +4,10 @@ import { deleteTanka, putFeedback, recheck, restoreRevision } from "../lib/api";
 import { useCheckRuns, useFeedback, useRevision, useTanka } from "../lib/data";
 import { findingTitle, resolvedDetails, summarize } from "../lib/findings";
 import { loadSettings } from "../lib/settings";
-import { CheckIcon, ClockIcon, ConfirmDialog, FindingCard, formatDate, HighlightedPoem, Loading, RestoreDialog, TopBar, TrashIcon } from "../components/ui";
+import { CheckIcon, ConfirmDialog, FindingCard, formatDate, HighlightedPoem, Loading, RestoreDialog, TopBar } from "../components/ui";
 import type { CheckRun } from "../lib/types";
-import { DeleteNote, PublishAndSequenceSection } from "../components/library";
+import { DeleteNote } from "../components/library";
+import { DangerFooter, TankaActions, TankaHistory, TankaRelations } from "../components/detail";
 
 export default function ResultPage() {
   const { tankaId = "", revisionId = "" } = useParams();
@@ -100,17 +101,6 @@ export default function ResultPage() {
         backLabel="一覧に戻る"
         title={`第${rev.revisionNo}稿`}
         sub={restoredFrom ? `${formatDate(rev.createdAt)} · 第${restoredFrom.revisionNo}稿に戻した` : `${formatDate(rev.createdAt)} 保存`}
-        right={
-          <>
-            <Link to={`/t/${tankaId}/history`} className="text-link-btn">
-              <ClockIcon />
-              履歴
-            </Link>
-            <button type="button" className="icon-btn" aria-label="この短歌を削除" style={{ color: "var(--muted)" }} onClick={() => setConfirmDelete(true)}>
-              <TrashIcon />
-            </button>
-          </>
-        }
       />
       {confirmDelete && (
         <ConfirmDialog
@@ -212,21 +202,13 @@ export default function ResultPage() {
         </p>
       )}
 
-      {tanka && <PublishAndSequenceSection tanka={tanka} rev={rev} />}
-
-      <div className="footer-bar" style={{ marginTop: 24 }}>
-        <Link to={`/t/${tankaId}/edit?from=${rev.id}`} className="btn-primary">
-          この稿から推敲する
-        </Link>
-        {tanka && !isLatest && (
-          <>
-            <button type="button" className="btn-secondary" disabled={busy === "restore"} onClick={() => setConfirmRestore(true)}>
-              この稿に戻す
-            </button>
-            <span className="small muted" style={{ textAlign: "center" }}>この稿はいまの稿ではありません。ここから枝分かれして推敲するか、この稿に戻していまの稿にできます。</span>
-          </>
-        )}
-      </div>
+      {/* つながり → 履歴 → 操作 → 削除（設計書「詳細ページの構造」） */}
+      {tanka && <TankaRelations tanka={tanka} rev={rev} />}
+      <TankaHistory tankaId={tankaId} />
+      {tanka && (
+        <TankaActions tanka={tanka} rev={rev} onRestore={!isLatest ? () => setConfirmRestore(true) : undefined} restoring={busy === "restore"} />
+      )}
+      <DangerFooter label="この短歌を削除" note="すべての稿とチェック結果が消えます。発表記録は残ります" onClick={() => setConfirmDelete(true)} />
       {confirmRestore && (
         <RestoreDialog
           revisionNo={rev.revisionNo}

@@ -8,8 +8,9 @@ import { loadSettings } from "../../lib/settings";
 import { findingsOf, findingTimeline } from "../../lib/timeline";
 import type { CheckRun, Finding } from "../../lib/types";
 import { PcShell, PcTally, VerticalPoem } from "../../components/pc";
-import { DeleteNote, PublishAndSequenceSection } from "../../components/library";
-import { BackIcon, CheckIcon, ConfirmDialog, formatDate, Loading, RestoreDialog, SeverityBadge, TransitionBadge, TrashIcon } from "../../components/ui";
+import { DeleteNote } from "../../components/library";
+import { DangerFooter, TankaActions, TankaHistory, TankaRelations } from "../../components/detail";
+import { BackIcon, CheckIcon, ConfirmDialog, formatDate, Loading, RestoreDialog, SeverityBadge, TransitionBadge } from "../../components/ui";
 
 type Mode = "list" | "finding" | "hidden";
 
@@ -110,7 +111,6 @@ export default function PcResult({ mode, revisionIdOverride }: { mode: Mode; rev
         {s.filtered.length > 0 && (
           <p className="small muted" style={{ margin: 0 }}>表示の設定で {s.filtered.length}件を省いています。<Link to="/settings#display">設定</Link></p>
         )}
-        {tanka && <PublishAndSequenceSection tanka={tanka} rev={rev} pc />}
       </>
     );
   }
@@ -128,19 +128,6 @@ export default function PcResult({ mode, revisionIdOverride }: { mode: Mode; rev
             {rev.note && ` · メモ：${rev.note}`}
           </span>
         </div>
-        <div className="pc-actions">
-          {mode === "list" && (
-            <button type="button" className="pc-btn danger" onClick={() => setConfirmDelete(true)}>
-              <TrashIcon />
-              削除
-            </button>
-          )}
-          <Link to={`/t/${tankaId}/history`} className="pc-btn">履歴と比較</Link>
-          {tanka && !isCurrent && (
-            <button type="button" className="pc-btn" disabled={actions.busy === "restore"} onClick={() => setConfirmRestore(true)}>この稿に戻す</button>
-          )}
-          <Link to={`/t/${tankaId}/edit?from=${rev.id}`} className="pc-btn primary">この稿から推敲する</Link>
-        </div>
       </div>
       <VerticalPoem text={rev.bodyNormalized} segments={rev.segments} findings={highlight} />
       {rev.parentRevisionId &&
@@ -152,6 +139,11 @@ export default function PcResult({ mode, revisionIdOverride }: { mode: Mode; rev
         ) : (
           <PcTally counts={s.counts} />
         ))}
+      {/* つながり → 履歴 → 操作 → 削除（設計書「詳細ページの構造」） */}
+      {tanka && <TankaRelations tanka={tanka} rev={rev} />}
+      <TankaHistory tankaId={tankaId} />
+      {tanka && <TankaActions tanka={tanka} rev={rev} onRestore={!isCurrent ? () => setConfirmRestore(true) : undefined} restoring={actions.busy === "restore"} />}
+      <DangerFooter label="この短歌を削除" note="すべての稿とチェック結果が消えます。発表記録は残ります" onClick={() => setConfirmDelete(true)} />
       {confirmRestore && (
         <RestoreDialog
           revisionNo={rev.revisionNo}

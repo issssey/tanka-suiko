@@ -3,9 +3,9 @@ import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, typ
 import { Link, useNavigate } from "react-router-dom";
 import { createSequence, updateSequence } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { useRevision, useSequences, useTankaPublications, useTankas } from "../lib/data";
-import { formatDay, kanjiNumber, publishedRevisionNo, sequenceTitle } from "../lib/publishing";
-import type { Revision, Sequence, Tanka } from "../lib/types";
+import { useRevision, useSequences, useTankas } from "../lib/data";
+import { kanjiNumber, sequenceTitle } from "../lib/publishing";
+import type { Sequence, Tanka } from "../lib/types";
 import { formatDate } from "./ui";
 
 type Item = Sequence["items"][number];
@@ -178,72 +178,6 @@ export function AddToSequenceSheet({ tanka, onClose }: { tanka: Tanka; onClose: 
   );
 }
 
-/** 結果画面の「発表と連作」。その歌の発表記録と、入っている連作。 */
-export function PublishAndSequenceSection({ tanka, rev, pc }: { tanka: Tanka; rev: Revision; pc?: boolean }) {
-  const { user } = useAuth();
-  const { data: pubs } = useTankaPublications(user?.uid, tanka.id);
-  const { data: sequences } = useSequences(user?.uid);
-  const [adding, setAdding] = useState(false);
-  const mine = sequences.filter((s) => s.items.some((i) => i.tankaId === tanka.id));
-  const Heading = pc ? "h3" : "h2";
-  const rows = (
-    <>
-      {pubs.map((p) => {
-        const no = publishedRevisionNo(p, tanka.id);
-        const what = p.sequenceId ? `連作「${p.sequenceTitle || "無題"}」で第${no}稿を出した` : `第${no}稿を出した`;
-        return (
-          <Link key={p.id} to={`/publications/${p.id}`} className="linked-row">
-            <span className="chip outline-accent" style={{ flexShrink: 0 }}>発表済み</span>
-            <span className="what">
-              <span className="t">{p.destination}</span>
-              <span className="s">{formatDay(p.submittedOn, "short")} · {what}</span>
-            </span>
-            {!pc && <span aria-hidden="true" style={{ color: "var(--placeholder)" }}>›</span>}
-          </Link>
-        );
-      })}
-      {mine.map((s) => (
-        <SequenceLink key={s.id} seq={s} tanka={tanka} rev={rev} pc={pc} />
-      ))}
-    </>
-  );
-  const empty = pubs.length === 0 && mine.length === 0;
-  return (
-    <>
-      <Heading className={pc ? undefined : "section-title"} style={pc ? { margin: "14px 0 0" } : { marginTop: 28 }}>発表と連作</Heading>
-      {empty ? (
-        <p className="small muted" style={pc ? { margin: 0 } : { margin: "0 20px" }}>まだ発表の記録はなく、連作にも入っていません。</p>
-      ) : pc ? (
-        rows
-      ) : (
-        <div className="linked-rows">{rows}</div>
-      )}
-      <div className="row-actions">
-        <Link to={`/publish?t=${tanka.id}&r=${rev.id}`} className="accent">発表を記録</Link>
-        <button type="button" onClick={() => setAdding(true)}>連作に入れる</button>
-      </div>
-      {adding && <AddToSequenceSheet tanka={tanka} onClose={() => setAdding(false)} />}
-    </>
-  );
-}
-
-function SequenceLink({ seq, tanka, rev, pc }: { seq: Sequence; tanka: Tanka; rev: Revision; pc?: boolean }) {
-  const item = seq.items.find((i) => i.tankaId === tanka.id);
-  const { data: inside } = useRevision(tanka.id, item?.revisionId);
-  const stale = item?.revisionId !== tanka.currentRevisionId;
-  const sub = item?.revisionId === rev.id ? "この稿が入っています" : inside ? `連作には第${inside.revisionNo}稿が入っています` : "";
-  return (
-    <Link to={`/sequences/${seq.id}`} className="linked-row">
-      <span className="chip outline" style={{ flexShrink: 0 }}>連作</span>
-      <span className="what">
-        <span className="t">「{sequenceTitle(seq)}」に入っています</span>
-        {sub && <span className={stale ? "s stale" : "s"}>{sub}</span>}
-      </span>
-      {!pc && <span aria-hidden="true" style={{ color: "var(--placeholder)" }}>›</span>}
-    </Link>
-  );
-}
-
 /**
  * 連作の歌の並び。つまみをドラッグ（または矢印キー）で並べ替える。
  * 入れた稿といまの稿が違えば「新しい稿があります」と出し、差し替えるかは作者が選ぶ。
@@ -252,12 +186,15 @@ export function SequenceItems({
   items,
   tankasById,
   onChange,
+  onRemove,
   disabled,
   pc,
 }: {
   items: Item[];
   tankasById: Map<string, Tanka>;
   onChange: (items: Item[]) => void;
+  /** 外す（呼び出し側で保存を数秒遅らせ「元に戻す」を出す） */
+  onRemove?: (tankaId: string) => void;
   disabled?: boolean;
   pc?: boolean;
 }) {
@@ -319,7 +256,7 @@ export function SequenceItems({
             onKeyDown: (e) => onKeyDown(i, e),
           }}
           onReplace={() => onChange(items.map((x) => (x.tankaId === item.tankaId ? { ...x, revisionId: tankasById.get(x.tankaId)!.currentRevisionId! } : x)))}
-          onRemove={() => onChange(items.filter((x) => x.tankaId !== item.tankaId))}
+          onRemove={() => (onRemove ? onRemove(item.tankaId) : onChange(items.filter((x) => x.tankaId !== item.tankaId)))}
         />
       ))}
     </ol>
@@ -359,6 +296,10 @@ function SequenceItemRow({
   const stale = tanka?.currentRevisionId && !isCurrent;
   const revLabel = rev ? `第${rev.revisionNo}稿` : "";
   const currentChip = isCurrent && <span className="chip outline" style={{ alignSelf: "flex-start" }}>いまの稿</span>;
+  // 連作の中の歌から、その歌のいまの稿に移る
+  const openLink = tanka?.currentRevisionId && (
+    <Link to={`/t/${tanka.id}/r/${tanka.currentRevisionId}`} style={{ fontSize: 13, fontWeight: 500, textDecoration: "none" }}>いまの稿を開く</Link>
+  );
   return (
     <li className={dragging ? "seq-item dragging" : "seq-item"}>
       <button type="button" className="drag-handle" aria-label={`${label}を並べ替え（上下の矢印キーでも動かせます）`} disabled={disabled} {...handle}>
@@ -367,12 +308,13 @@ function SequenceItemRow({
       {pc && <span className="num">{kanjiNumber(no)}</span>}
       <div className="body">
         {!pc && <span className="small muted">{kanjiNumber(no)}{revLabel && ` · ${revLabel}`}</span>}
-        <p className="poem">{rev?.bodyNormalized ?? tanka?.latestBody ?? "…"}</p>
         {!pc && currentChip}
+        <p className="poem">{rev?.bodyNormalized ?? tanka?.latestBody ?? "…"}</p>
         {pc && revLabel && (
           <span className="small muted" style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {revLabel}
             {currentChip}
+            {openLink}
           </span>
         )}
         {stale && (
@@ -381,6 +323,7 @@ function SequenceItemRow({
             <button type="button" disabled={disabled} onClick={onReplace}>差し替える</button>
           </div>
         )}
+        {!pc && <span>{openLink}</span>}
       </div>
       <button type="button" className="text-btn" aria-label={`${label}を連作から外す`} disabled={disabled} onClick={onRemove}>外す</button>
     </li>

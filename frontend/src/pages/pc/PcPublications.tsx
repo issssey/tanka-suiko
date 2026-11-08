@@ -1,12 +1,13 @@
 // PC版の発表記録。左に記録の一覧（検索付き）、右に選んだ記録の詳細か「発表を記録」のフォーム
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { PcHeader, SideSearch } from "../../components/pc";
 import { PublishForm } from "../../components/publish";
+import { DangerFooter, DetailSection, PublicationHistory, PublicationRelations, PublishedItem } from "../../components/detail";
 import { ConfirmDialog, formatDate, Loading, PlusIcon } from "../../components/ui";
 import { deletePublication, updatePublication } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-import { usePublications, useSequences } from "../../lib/data";
+import { usePublications, useTankas } from "../../lib/data";
 import { formatDay, kanjiNumber, publicationSummary } from "../../lib/publishing";
 import type { Publication } from "../../lib/types";
 import { useGoneTankas } from "../Publications";
@@ -100,8 +101,8 @@ export function PcPublication() {
 
 function PublicationEditor({ pub }: { pub: Publication }) {
   const { user } = useAuth();
-  const { data: sequences } = useSequences(user?.uid);
-  const isGone = useGoneTankas();
+  const { data: tankas } = useTankas(user?.uid);
+  const tankasById = useMemo(() => new Map(tankas.map((t) => [t.id, t])), [tankas]);
   const navigate = useNavigate();
   const [destination, setDestination] = useState(pub.destination);
   const [submittedOn, setSubmittedOn] = useState(pub.submittedOn);
@@ -156,12 +157,6 @@ function PublicationEditor({ pub }: { pub: Publication }) {
     }
   }
 
-  const seqExists = pub.sequenceId && sequences.some((s) => s.id === pub.sequenceId);
-  const what = pub.sequenceId
-    ? `${publicationSummary(pub)}を出した記録`
-    : pub.items.length === 1
-      ? `1首（第${pub.items[0].revisionNo}稿）を出した記録`
-      : `${pub.items.length}首を出した記録`;
   const status =
     state === "saving" ? "保存中…" : state === "saved" ? `保存しました · ${formatDate(pub.updatedAt)}` : state === "error" ? message : "直すと自動で保存します";
 
@@ -170,9 +165,8 @@ function PublicationEditor({ pub }: { pub: Publication }) {
       <div className="pc-titlebar">
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <h1>{pub.destination}</h1>
-          <span className="meta">{what}</span>
+          <span className="meta">{publicationSummary(pub)} · {formatDay(pub.submittedOn, "short")}</span>
         </div>
-        <button type="button" className="pc-btn danger" onClick={() => setConfirmDelete(true)}>この記録を削除</button>
       </div>
       <section className="card pub-edit">
         <div className="form-grid2">
@@ -194,30 +188,17 @@ function PublicationEditor({ pub }: { pub: Publication }) {
           {status}
         </span>
       </section>
-      <section className="pub-detail-section">
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
-          <h2>出したもの</h2>
-          {seqExists && <Link to={`/sequences/${pub.sequenceId}`} className="small" style={{ fontWeight: 500 }}>連作を開く</Link>}
-        </div>
+      <DetailSection title="出したもの">
         <p className="hint">出した時点の稿と本文です。後で推敲しても変わりません。出したものを間違えたときは、記録を削除して記録し直してください。</p>
         <ol className="pub-items">
-          {pub.items.map((it, i) => {
-            const gone = isGone(it.tankaId);
-            return (
-              <li key={`${it.tankaId}-${i}`}>
-                {pub.items.length > 1 && <span className="num">{kanjiNumber(i + 1)}</span>}
-                <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-                  <p className={gone ? "poem gone" : "poem"}>{it.body}</p>
-                  <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    <span className="small muted">第{it.revisionNo}稿</span>
-                    {gone && <span className="chip outline">削除した歌</span>}
-                  </span>
-                </div>
-              </li>
-            );
-          })}
+          {pub.items.map((it, i) => (
+            <PublishedItem key={`${it.tankaId}-${i}`} no={kanjiNumber(i + 1)} item={it} tanka={tankasById.get(it.tankaId)} many={pub.items.length > 1} />
+          ))}
         </ol>
-      </section>
+      </DetailSection>
+      <PublicationRelations pub={pub} />
+      <PublicationHistory pub={pub} />
+      <DangerFooter label="この記録を削除" note="短歌と連作は消えません" onClick={() => setConfirmDelete(true)} />
       {confirmDelete && (
         <ConfirmDialog title="この記録を削除しますか？" confirmLabel="記録を削除する" busy={deleting} onConfirm={remove} onCancel={() => setConfirmDelete(false)}>
           <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8 }}>短歌と連作は消えません。</p>

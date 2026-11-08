@@ -525,3 +525,31 @@ html { touch-action: manipulation; }
 .poem-clamp { margin: 0; font-family: var(--serif); font-size: 16px; line-height: 1.85; color: var(--text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .tanka-card.compact { gap: 8px; }
 .tanka-card .title { font-size: 15px; font-weight: 700; }
+
+/* 詳細ページの区画（見出しと情報 → 中身 → つながり → 履歴 → 操作 → 削除） */
+.detail-section { display: flex; flex-direction: column; gap: 10px; margin: 28px 16px 0; }
+.detail-section h2 { margin: 0; font-size: 15px; font-weight: 700; }
+.detail-rows { margin: 0; overflow: hidden; }
+.detail-rows .linked-row { min-height: 44px; padding: 12px 16px; }
+.detail-empty { margin: 0; padding: 16px; border: 1px dashed var(--control); border-radius: 14px; font-size: 13px; color: var(--muted); }
+.detail-info { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.detail-info > div { display: flex; justify-content: space-between; gap: 12px; padding: 12px 16px; font-size: 14px; border-bottom: 1px solid var(--line-2); }
+.detail-info > div:last-child { border-bottom: none; }
+.detail-actions { display: flex; flex-direction: column; gap: 8px; }
+.detail-actions .row { display: flex; gap: 8px; }
+.detail-actions .row > * { flex: 1; height: 46px; font-size: 14px; }
+.detail-actions .btn-primary { height: 48px; font-size: 15px; }
+.detail-danger { display: flex; flex-direction: column; gap: 2px; margin: 28px 16px 40px; padding-top: 16px; border-top: 1px solid var(--line); }
+.detail-danger button { height: 44px; border: none; background: transparent; font-family: var(--sans); font-size: 14px; color: var(--high); cursor: pointer; }
+.detail-danger p { margin: 0; text-align: center; font-size: 12px; line-height: 1.6; color: var(--muted); }
+.pc-main .detail-section, .pc-main .detail-danger { margin-left: 0; margin-right: 0; }
+.pc-main .detail-section { margin-top: 0; }
+.pc-main .detail-danger { margin-top: 0; margin-bottom: 0; }
+.pc-main .detail-actions { flex-direction: row; flex-wrap: wrap; }
+.pc-main .detail-actions > .btn-primary { flex: 1; width: auto; padding: 0 18px; }
+.pc-main .detail-actions .row { flex: 2; }
+.pc-main .detail-actions .row > * { height: 48px; }
+.undo-bar { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 40; display: flex; align-items: center; gap: 14px; max-width: calc(100vw - 32px); padding: 10px 10px 10px 16px; border-radius: 12px; background: var(--text); color: #fff; font-size: 14px; box-shadow: 0 6px 20px rgba(28, 27, 25, 0.25); }
+.undo-bar span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.undo-bar button { flex: none; height: 36px; padding: 0 12px; border: none; border-radius: 8px; background: transparent; color: #c9d6ea; font-family: var(--sans); font-size: 14px; font-weight: 700; cursor: pointer; }
+.pc-seq .detail-section, .pc-seq .detail-danger { max-width: 880px; }

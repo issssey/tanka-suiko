@@ -283,3 +283,25 @@ export function useDestinations(uid: string | undefined): Loadable<string[]> {
     [uid],
   );
 }
+
+/** その連作を出した発表記録（連作の詳細の「つながり」）。 */
+export function useSequencePublications(uid: string | undefined, sequenceId: string | undefined): Loadable<Publication[]> {
+  return useSnapshot<Publication[]>(
+    "useSequencePublications",
+    uid && sequenceId
+      ? (set, fail) =>
+          onSnapshot(
+            query(
+              collection(db, "publications"),
+              where("authorId", "==", uid),
+              where("sequenceId", "==", sequenceId),
+              orderBy("submittedOn", "desc"),
+            ),
+            (snap) => set(snap.docs.map((d) => fromDoc<Publication>(d.id, d.data()))),
+            fail,
+          )
+      : null,
+    [],
+    [uid, sequenceId],
+  );
+}

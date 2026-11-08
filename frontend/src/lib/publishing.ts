@@ -72,3 +72,13 @@ export function duplicateLine(pub: Publication, tankaId: string | null): string 
   const what = no ? `第${no}稿` : pub.sequenceId ? `連作「${pub.sequenceTitle || "無題"}」` : "この歌";
   return `${formatDay(pub.submittedOn, "short")}に「${pub.destination}」に${what}を出しています。`;
 }
+
+/**
+ * 連作を出した記録について、出した後にいまの連作が変わったか（題・歌・並び・稿）。
+ * 画面側で計算し、保存はしない（設計書「詳細ページの構造」）。
+ */
+export function publicationChanged(pub: Publication, seq: Pick<Sequence, "title" | "items">): boolean {
+  if ((pub.sequenceTitle ?? "") !== seq.title) return true;
+  if (pub.items.length !== seq.items.length) return true;
+  return pub.items.some((it, i) => it.tankaId !== seq.items[i].tankaId || it.revisionId !== seq.items[i].revisionId);
+}

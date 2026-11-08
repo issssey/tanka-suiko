@@ -1,9 +1,12 @@
-// 連作（スマホ）。題・並び・差し替えは変えたらすぐ保存する
+// 連作（スマホ）。題・並び・差し替えは変えたらすぐ保存する。
+// 区画は 見出しと情報 → 中身（題と歌の並び）→ つながり → 履歴 → 操作 → 削除（設計書「詳細ページの構造」）
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { DangerFooter, DetailSection, InfoRows, SequenceRelations, UndoBar } from "../components/detail";
 import { SaveStatus, SequenceItems, TankaPickerSheet } from "../components/library";
-import { ConfirmDialog, Loading, PlusIcon, TopBar } from "../components/ui";
+import { ConfirmDialog, formatDate, Loading, PlusIcon, TopBar } from "../components/ui";
 import { useSequence } from "../lib/data";
+import { sequenceTitle } from "../lib/publishing";
 import { useSequenceEditor } from "../lib/sequenceEditor";
 
 export default function SequencePage() {
@@ -22,32 +25,36 @@ function SequenceEditor({ seqId }: { seqId: string }) {
   if (!seq) return null;
   return (
     <>
-      <TopBar back="/sequences" backLabel="連作一覧に戻る" title="連作" sub={`${ed.items.length}首 · ${ed.published ? "発表済み" : "未発表"}`} />
+      <TopBar back="/sequences" backLabel="連作一覧に戻る" title={sequenceTitle({ title: ed.title })} sub={`${ed.items.length}首 · ${formatDate(seq.updatedAt)}`} />
       <div className="seq-title-field">
         <label htmlFor="seq-title" className="small muted" style={{ fontWeight: 500 }}>題</label>
         <input id="seq-title" className="seq-title-input" type="text" maxLength={100} placeholder="題を入れる" {...ed.titleProps} />
         <SaveStatus state={ed.saveState} savedAt={ed.savedAt} />
       </div>
-      <SequenceItems items={ed.items} tankasById={ed.tankasById} onChange={ed.setItems} disabled={ed.busy !== null} />
+      <SequenceItems items={ed.items} tankasById={ed.tankasById} onChange={ed.setItems} onRemove={ed.removeItem} disabled={ed.busy === "delete"} />
       {ed.items.length === 0 && <p className="muted small" style={{ margin: "0 20px" }}>まだ歌が入っていません。</p>}
       <button type="button" className="add-dashed" disabled={ed.items.length >= 100} onClick={() => setAdding(true)}>
         <PlusIcon />
         歌を加える
       </button>
       {ed.error && <p className="error">{ed.error}</p>}
-      {/* 下に固定せず、歌の並びの後に置く（固定すると画面の下を大きく取ってしまう） */}
-      <div className="seq-footer">
-        {/* 作って終わりにしてよい。出すのは仕上がってからなので、控えめなボタンにする */}
-        {ed.items.length > 0 ? (
-          <Link to={`/publish?s=${seq.id}`} className="btn-secondary">この連作を出す（発表を記録）</Link>
-        ) : (
-          <button type="button" className="btn-secondary" disabled>この連作を出す（発表を記録）</button>
-        )}
-        <p className="hint" style={{ textAlign: "center" }}>仕上がったら、出したときに記録します</p>
-        <button type="button" className="text-btn danger" style={{ alignSelf: "center" }} onClick={() => setConfirmDelete(true)}>
-          連作を削除（中の短歌は消えません）
-        </button>
-      </div>
+
+      <SequenceRelations seq={seq} />
+      <DetailSection title="履歴">
+        <InfoRows rows={[["作った日", formatDate(seq.createdAt)], ["最後に直した日", formatDate(seq.updatedAt)]]} />
+      </DetailSection>
+      <DetailSection title="操作">
+        <div className="detail-actions">
+          {ed.items.length > 0 ? (
+            <Link to={`/publish?s=${seq.id}`} className="btn-secondary">発表を記録</Link>
+          ) : (
+            <button type="button" className="btn-secondary" disabled>発表を記録</button>
+          )}
+        </div>
+      </DetailSection>
+      <DangerFooter label="この連作を削除" note="中の短歌と発表記録は消えません" onClick={() => setConfirmDelete(true)} />
+
+      {ed.undo && <UndoBar tanka={ed.tankasById.get(ed.undo.removed.tankaId)} onUndo={ed.undoRemove} />}
       {adding && (
         <TankaPickerSheet
           exclude={ed.items.map((i) => i.tankaId)}
@@ -60,11 +67,10 @@ function SequenceEditor({ seqId }: { seqId: string }) {
       )}
       {confirmDelete && (
         <ConfirmDialog title="この連作を削除しますか？" confirmLabel="連作を削除する" busy={ed.busy === "delete"} onConfirm={ed.remove} onCancel={() => setConfirmDelete(false)}>
-          <p className="quote">{ed.title.trim() || "無題の連作"}</p>
+          <p className="quote">{sequenceTitle({ title: ed.title })}</p>
           <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8 }}>中の短歌と発表記録は消えません。</p>
         </ConfirmDialog>
       )}
     </>
   );
 }
-

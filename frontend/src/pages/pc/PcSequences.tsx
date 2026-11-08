@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { PcHeader, SideSearch } from "../../components/pc";
 import { SaveStatus, SequenceItems, TankaPickerSheet } from "../../components/library";
+import { DangerFooter, DetailSection, InfoRows, SequenceRelations, UndoBar } from "../../components/detail";
 import { ConfirmDialog, formatDate, Loading, PlusIcon } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { usePublications, useRevision, useSequence, useSequences, useTankas } from "../../lib/data";
@@ -86,25 +87,31 @@ function PcSequenceEditor({ sequenceId }: { sequenceId: string }) {
           <input id="pcseq-title" className="seq-title-input" style={{ height: 52, fontSize: 24, padding: "0 16px" }} type="text" maxLength={100} placeholder="題を入れる" {...ed.titleProps} />
           <SaveStatus state={ed.saveState} savedAt={ed.savedAt} />
         </div>
-        <div className="pc-actions" style={{ display: "flex", gap: 8 }}>
-          <button type="button" className="pc-btn danger" onClick={() => setConfirmDelete(true)}>連作を削除</button>
-          {/* 作って終わりにしてよい。出すのは仕上がってからなので、控えめなボタンにする */}
-          {ed.items.length > 0 ? (
-            <Link to={`/publish?s=${seq.id}`} className="pc-btn" title="仕上がったら、出したときに記録します">この連作を出す</Link>
-          ) : (
-            <button type="button" className="pc-btn" disabled>この連作を出す</button>
-          )}
-        </div>
       </div>
       <span className="small muted" style={{ fontSize: 13 }}>
-        {ed.items.length}首 · {ed.published ? "発表済み" : "未発表"} · 並べ替えはつまみをドラッグ。仕上がったら、出したときに記録します。連作を削除しても、中の短歌と発表記録は消えません
+        {ed.items.length}首 · {formatDate(seq.updatedAt)} · 並べ替えはつまみをドラッグ
       </span>
       {ed.error && <p className="error" style={{ margin: 0 }}>{ed.error}</p>}
-      <SequenceItems items={ed.items} tankasById={ed.tankasById} onChange={ed.setItems} disabled={ed.busy !== null} pc />
+      <SequenceItems items={ed.items} tankasById={ed.tankasById} onChange={ed.setItems} onRemove={ed.removeItem} disabled={ed.busy === "delete"} pc />
       <button type="button" className="add-dashed" disabled={ed.items.length >= 100} onClick={() => setAdding(true)}>
         <PlusIcon />
         歌を加える
       </button>
+      <SequenceRelations seq={seq} />
+      <DetailSection title="履歴">
+        <InfoRows rows={[["作った日", formatDate(seq.createdAt)], ["最後に直した日", formatDate(seq.updatedAt)]]} />
+      </DetailSection>
+      <DetailSection title="操作">
+        <div className="detail-actions">
+          {ed.items.length > 0 ? (
+            <Link to={`/publish?s=${seq.id}`} className="btn-secondary" style={{ maxWidth: 320 }}>発表を記録</Link>
+          ) : (
+            <button type="button" className="btn-secondary" style={{ maxWidth: 320 }} disabled>発表を記録</button>
+          )}
+        </div>
+      </DetailSection>
+      <DangerFooter label="この連作を削除" note="中の短歌と発表記録は消えません" onClick={() => setConfirmDelete(true)} />
+      {ed.undo && <UndoBar tanka={ed.tankasById.get(ed.undo.removed.tankaId)} onUndo={ed.undoRemove} />}
       {adding && (
         <TankaPickerSheet
           exclude={ed.items.map((i) => i.tankaId)}
