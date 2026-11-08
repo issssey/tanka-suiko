@@ -6,6 +6,7 @@ import { useAuth } from "../lib/auth";
 import { useRevision, useSequences, useTankaPublications, useTankas } from "../lib/data";
 import { formatDay, kanjiNumber, publishedRevisionNo, sequenceTitle } from "../lib/publishing";
 import type { Revision, Sequence, Tanka } from "../lib/types";
+import { formatDate } from "./ui";
 
 type Item = Sequence["items"][number];
 
@@ -358,5 +359,22 @@ function SequenceItemRow({
       </div>
       <button type="button" className="text-btn" aria-label={`${label}を連作から外す`} disabled={disabled} onClick={onRemove}>外す</button>
     </li>
+  );
+}
+
+/** 連作の保存の状態（「自動で保存しました · 今日 4:33」）。保存ボタンを置かないので、保存されたことを見せる。 */
+export function SaveStatus({ state, savedAt }: { state: "saving" | "saved" | "error"; savedAt: Date | null }) {
+  const text =
+    state === "saving" ? "保存中…" : state === "error" ? "保存できませんでした" : `自動で保存しました${savedAt ? ` · ${formatDate(savedAt)}` : ""}`;
+  return (
+    <span role="status" aria-live="polite" className="save-status" data-state={state}>
+      {state === "saved" && (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M5 12l5 5L20 7" />
+        </svg>
+      )}
+      {state === "saving" && <span className="spinner" aria-hidden="true" style={{ width: 12, height: 12 }} />}
+      {text}
+    </span>
   );
 }

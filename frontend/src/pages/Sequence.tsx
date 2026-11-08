@@ -1,7 +1,7 @@
 // 連作（スマホ）。題・並び・差し替えは変えたらすぐ保存する
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { SequenceItems, TankaPickerSheet } from "../components/library";
+import { SaveStatus, SequenceItems, TankaPickerSheet } from "../components/library";
 import { ConfirmDialog, Loading, PlusIcon, TopBar } from "../components/ui";
 import { useSequence } from "../lib/data";
 import { useSequenceEditor } from "../lib/sequenceEditor";
@@ -26,6 +26,7 @@ function SequenceEditor({ seqId }: { seqId: string }) {
       <div className="seq-title-field">
         <label htmlFor="seq-title" className="small muted" style={{ fontWeight: 500 }}>題</label>
         <input id="seq-title" className="seq-title-input" type="text" maxLength={100} placeholder="題を入れる" {...ed.titleProps} />
+        <SaveStatus state={ed.saveState} savedAt={ed.savedAt} />
       </div>
       <SequenceItems items={ed.items} tankasById={ed.tankasById} onChange={ed.setItems} disabled={ed.busy !== null} />
       {ed.items.length === 0 && <p className="muted small" style={{ margin: "0 20px" }}>まだ歌が入っていません。</p>}
@@ -35,11 +36,13 @@ function SequenceEditor({ seqId }: { seqId: string }) {
       </button>
       {ed.error && <p className="error">{ed.error}</p>}
       <div className="footer-bar" style={{ marginTop: 24 }}>
+        {/* 作って終わりにしてよい。出すのは仕上がってからなので、控えめなボタンにする */}
         {ed.items.length > 0 ? (
-          <Link to={`/publish?s=${seq.id}`} className="btn-primary">この連作を出す（発表を記録）</Link>
+          <Link to={`/publish?s=${seq.id}`} className="btn-secondary">この連作を出す（発表を記録）</Link>
         ) : (
-          <button type="button" className="btn-primary" disabled>この連作を出す（発表を記録）</button>
+          <button type="button" className="btn-secondary" disabled>この連作を出す（発表を記録）</button>
         )}
+        <p className="hint" style={{ textAlign: "center" }}>仕上がったら、出したときに記録します</p>
         <button type="button" className="text-btn danger" style={{ alignSelf: "center", height: 40 }} onClick={() => setConfirmDelete(true)}>
           連作を削除（中の短歌は消えません）
         </button>

@@ -67,6 +67,9 @@ export function useSequenceEditor(seq: Sequence | null) {
     busy,
     error,
     published,
+    /** 保存の状態。変えたらすぐ保存するので、保存されたことを画面に出す */
+    saveState: (busy === "save" ? "saving" : error ? "error" : "saved") as "saving" | "saved" | "error",
+    savedAt: seq?.updatedAt ?? null,
     setTitle,
     titleProps: {
       value: title,
