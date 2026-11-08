@@ -72,6 +72,7 @@ cd backend && .venv/bin/python scripts/export_patterns.py ../frontend/src/genera
 - Claude Code のクラウドセッションでは `ANTHROPIC_BASE_URL` がセッション用に入っている。本物の API を呼ぶときは外す（`scripts/llm_smoke.py` がやっている）
 - `anti_patterns.yaml` を変えたら `export_patterns.py` で `patterns.json` を作り直す（テスト `test_generated.py` が検出する）。例の文面を変えると LLM の判定も変わる（promptVersion が変わる）
 - iPhone の Safari はノッチ部分の色を html・body の背景から取る。スマホ幅では body を地の色（#FAFAF7）にしている
+- iPhone の Safari：16px 未満の入力欄はフォーカスで拡大される（入力欄は 16px）。`input[type=date]` は独自の見た目で幅がはみ出るので appearance を外す。viewport の user-scalable=no は無視されるので、ピンチは main.tsx でジェスチャーのイベントを止めている。この環境に WebKit はないので Safari の見た目は実機で確かめる
 - CSS の `.pc` は PC版の画面全体の入れ物（縦並び・画面の高さ）。部品の修飾子に `pc` という class 名を付けると巻き込まれる（`lib-tabs-pc` のように別名にする）
 
 ## 検証のしかた
