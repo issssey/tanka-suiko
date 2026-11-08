@@ -15,8 +15,8 @@
 ```
 backend/   Python 3.13 / FastAPI。1つのイメージを Cloud Run の tanka-api と tanka-worker で使う（APP_ROLE）
   app/preprocess/   正規化・文体推定・形態素解析（SudachiPy）・モーラ・句分け（DP）・入力の門番（readable.py）
-  app/checkers/     rules.py（A1,A4,B7,C2,C3,C5 と履歴の E3）、llm.py（残り20項目）、runner.py（解消/継続/新規）
-  app/patterns/anti_patterns.yaml   27パターンのマスタ（定義・判定の目安・例。LLMのプロンプトと画面の両方で使う）
+  app/checkers/     rules.py（A1,A4,A5,A6,B7,C2,C3,C5 と履歴の E3）、llm.py（残り21項目）、runner.py（解消/継続/新規）
+  app/patterns/anti_patterns.yaml   30パターンのマスタ（定義・判定の目安・例・根拠。LLMのプロンプトと画面の両方で使う。根拠はLLMに渡さない）
   app/prompts/llm_check.yaml        LLMの指示文
   app/repository/   firestore.py と memory.py（同じインターフェース。契約テストで両方を確かめる）
   app/service.py    ユースケース。app/main.py はAPIとワーカーのルート
@@ -47,7 +47,8 @@ cd backend && .venv/bin/python scripts/export_patterns.py ../frontend/src/genera
 
 ## これまでに決めたこと（覆すならユーザーに確認）
 
-- A1 の重大度：字足らず＝高、字余り＝中（設計書どおり。旧デザインは字余りも高だった）
+- 字余り・字足らず（2026-11-09 の見直し）：A1 は字足らずだけ（高）。字余りは三句・結句が A5（中）、初句・二句・四句が A6（低）。句の途中に母音の連続・長音・撥音があれば「読むと定型に近く聞こえる」と添える（重大度は変えない）
+- 見直し前に保存した A1（字余り）は runner.current_fingerprint で A5・A6 に読み替えて比べ、作者の判断は次の保存（再チェック）で A5・A6 に写す（元の判断は残す）。一括の移行スクリプトは持たない
 - 「意図的」「誤検出」は、設定した稿でもすぐ折りたたむ。feedback に設定した稿の revisionNo を持つ
 - ログインは Google のみ。DB には uid 以外の個人情報を書かない
 - 推敲メモは LLM に渡さない（意図は作者が「意図的」で示す、という設計書の方針）

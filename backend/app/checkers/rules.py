@@ -1,4 +1,4 @@
-"""同期ルール（A1, A4, B7, C2, C3, C5）と履歴ルール（E3）。
+"""同期ルール（A1, A4, A5, A6, B7, C2, C3, C5）と履歴ルール（E3）。
 
 形態素と五句の情報に対する条件式だけで判定する。辞書は持たない
 （C5の一人称代名詞など、少数の語のリストは anti_patterns.yaml の params に置く）。
@@ -25,30 +25,90 @@ def _seg_tokens(rev: Revision, no: int) -> list[Token]:
     return [t for t in rev.tokens if t.segmentNo == no]
 
 
-class MoraRule:
-    """A1 字余り・字足らず。確定した読みのモーラ数を句ごとに定型と比べる。"""
+# 字余りで余った音の種類（句の途中にあると、読むと定型に近く聞こえることがある）
+_VOWELS = "あいうえお"
+_VOWEL_ROWS = {
+    "あ": "あかさたなはまやらわがざだばぱ",
+    "い": "いきしちにひみりぎじぢびぴ",
+    "う": "うくすつぬふむゆるぐずづぶぷ",
+    "え": "えけせてねへめれげぜでべぺ",
+    "お": "おこそとのほもよろをごぞどぼぽ",
+}
+_SOUND_LABELS = {"vowelSequence": "母音の連続", "longVowel": "長音", "moraicNasal": "撥音"}
 
-    codes = ["A1"]
+
+def _vowel_of(kana: str) -> str | None:
+    for v, row in _VOWEL_ROWS.items():
+        if kana in row:
+            return v
+    return None
+
+
+def extra_sounds(reading: str) -> list[str]:
+    """句の読み（ひらがな）の途中（最初と最後の音を除く）にある、母音の連続・長音・撥音。"""
+    found: list[str] = []
+    for i in range(1, len(reading) - 1):
+        c, prev = reading[i], reading[i - 1]
+        kind = None
+        if c == "ー":
+            kind = "longVowel"
+        elif c == "ん":
+            kind = "moraicNasal"
+        elif c in _VOWELS and prev not in "っん":
+            pv = _vowel_of(prev)
+            # 同じ段の母音が続く・「おう」「えい」は長音、それ以外の母音の重なりは母音の連続
+            long_ = pv == c or (pv == "お" and c == "う") or (pv == "え" and c == "い")
+            kind = "longVowel" if long_ else "vowelSequence"
+        if kind and kind not in found:
+            found.append(kind)
+    return found
+
+
+class MoraRule:
+    """A1 字足らず、A5 字余り（三句・結句）、A6 字余り（初句・二句・四句）。
+
+    確定した読みのモーラ数を句ごとに定型と比べる。字余りは句の位置で重大度が違うので、別のコードにする
+    （現代短歌の字余りは三句・結句に少なく、初句・四句に多い）。
+    """
+
+    codes = ["A1", "A5", "A6"]
     phase = "sync"
 
     def check(self, ctx: CheckContext) -> list[RawFinding]:
-        p = ctx.patterns.get("A1")
         out = []
         for s in ctx.revision.segments:
             diff = s.mora - s.expected
             if diff == 0:
                 continue
-            kind = "excess" if diff > 0 else "shortage"
-            word = "字余り" if diff > 0 else "字足らず"
+            base = f"{seg_label(s.no)}「{s.text}」が{s.mora}モーラあります（定型は{s.expected}）。"
+            if diff < 0:
+                out.append(
+                    RawFinding(
+                        code="A1",
+                        segmentNo=s.no,
+                        span=s.span,
+                        matchedText=s.text,
+                        message=base,
+                        evidence={"kind": "字足らず", "mora": s.mora, "expected": s.expected},
+                    )
+                )
+                continue
+            code = "A5" if s.no in (3, 5) else "A6"
+            sounds = extra_sounds(s.reading)
+            notes = []
+            if sounds:
+                labels = "・".join(_SOUND_LABELS[k] for k in sounds)
+                notes.append(f"句の中に{labels}があり、読むと定型に近く聞こえることがあります。")
+            if code == "A6":
+                notes.append("この位置の字余りは、現代短歌でもよく見られます。")
             out.append(
                 RawFinding(
-                    code="A1",
-                    severity=p.severity[kind] if isinstance(p.severity, dict) else None,
+                    code=code,
                     segmentNo=s.no,
                     span=s.span,
                     matchedText=s.text,
-                    message=f"{seg_label(s.no)}「{s.text}」が{s.mora}モーラあります（定型は{s.expected}）。",
-                    evidence={"kind": word, "mora": s.mora, "expected": s.expected},
+                    message=base + "".join(notes),
+                    evidence={"kind": "字余り", "mora": s.mora, "expected": s.expected, "extraMora": diff, "sounds": sounds},
                 )
             )
         return out
@@ -100,6 +160,15 @@ class KumatagariRule:
                         )
                     )
                     break
+        # 句が「っ」「ん」で始まるか「っ」で終わると、特に読みにくくなりやすい
+        by_seg = {s.no: s for s in segs}
+        for f in out:
+            s = by_seg.get(f.segmentNo or 0)
+            nxt = by_seg.get((f.segmentNo or 0) + 1)
+            hard = (s and s.reading.endswith("っ")) or (nxt and nxt.reading[:1] in ("っ", "ん"))
+            if f.evidence.get("kind") == "句またがり" and hard:
+                f.message += "句が「っ」「ん」で始まるか「っ」で終わると、特に読みにくくなりやすい箇所です。"
+                f.evidence["hardSound"] = True
         return out
 
     @staticmethod
@@ -230,18 +299,54 @@ class ParticleRule:
                         evidence={"kind": "同じ助詞", "particle": surface, "count": len(occ)},
                     )
                 )
+
+        # 句末（読みの最後の音）が同じ句が三つ以上
+        same_end_min = int(p.params.get("sameEndingMin", 3))
+        endings: dict[str, list] = {}
+        for seg in rev.segments:
+            if seg.reading:
+                endings.setdefault(seg.reading[-1], []).append(seg)
+        for sound, segs_ in endings.items():
+            if len(segs_) >= same_end_min:
+                labels = "・".join(seg_label(x.no) for x in segs_)
+                out.append(
+                    RawFinding(
+                        code="C3",
+                        segmentNo=segs_[0].no,
+                        span=segs_[0].span,
+                        matchedText=segs_[0].text,
+                        message=f"{labels}が同じ音「{sound}」で終わっています（{len(segs_)}句）。",
+                        evidence={"kind": "句末の音", "sound": sound, "segments": [x.no for x in segs_]},
+                    )
+                )
         return out
 
 
 class FirstPersonRule:
-    """C5 不要な一人称主語。一人称の代名詞があれば指摘する（必要かどうかは作者が決める）。"""
+    """C5 作中主体の説明（一人称・認識動詞）。一人称の代名詞や「見る」「思う」などの認識動詞があれば指摘する
+    （必要かどうかは作者が決める）。fingerprint は語ベース（C5:私、C5:見る）。"""
 
     codes = ["C5"]
     phase = "sync"
 
     def check(self, ctx: CheckContext) -> list[RawFinding]:
-        pronouns = set(ctx.patterns.get("C5").params.get("pronouns", []))
+        params = ctx.patterns.get("C5").params
+        pronouns = set(params.get("pronouns", []))
+        verbs = set(params.get("cognitionVerbs", []))
         out = []
+        for t in ctx.revision.tokens:
+            if _pos(t, 0) == "動詞" and t.lemma in verbs:
+                out.append(
+                    RawFinding(
+                        code="C5",
+                        segmentNo=t.segmentNo,
+                        span=t.span,
+                        matchedText=t.surface,
+                        lemma=t.lemma,
+                        message=f"{seg_label(t.segmentNo or 0)}に作中主体の認識を説明する「{t.surface}」があります。",
+                        evidence={"kind": "認識動詞"},
+                    )
+                )
         for t in ctx.revision.tokens:
             if _pos(t, 0) != "代名詞" and t.surface not in pronouns:
                 continue

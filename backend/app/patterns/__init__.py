@@ -29,6 +29,7 @@ class Pattern:
     positive: tuple[str, ...] = ()
     negative: tuple[str, ...] = ()
     params: dict[str, Any] = field(default_factory=dict)
+    source: str | None = None  # 根拠（画面に出す。LLMには渡さない）
 
     @property
     def category(self) -> str:
@@ -69,6 +70,7 @@ def _parse(raw: dict[str, Any]) -> PatternSet:
             positive=tuple(item.get("positive", [])),
             negative=tuple(item.get("negative", [])),
             params=dict(item.get("params", {})),
+            source=item.get("source"),
         )
         if p.code in patterns:
             raise ValueError(f"duplicate pattern code: {p.code}")

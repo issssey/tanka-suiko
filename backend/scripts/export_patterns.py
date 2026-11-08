@@ -32,6 +32,7 @@ def main(out: str) -> None:
                 "positive": list(p.positive),
                 "negative": list(p.negative),
                 "requiresParent": p.requires_parent,
+                "source": p.source,
             }
             for p in ps.patterns.values()
         ],

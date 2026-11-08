@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 
 from .checkers.base import CheckContext
 from .checkers.llm import LLMChecker, LLMError, prompt_version
-from .checkers.runner import apply_transitions, run_async, run_sync
+from .checkers.runner import apply_transitions, current_fingerprint, run_async, run_sync
 from .config import Settings
 from .models import (
     MAX_SEQUENCE_ITEMS,
@@ -207,6 +207,9 @@ class Service:
         parent_sync = _latest(parent_runs, "sync")
         started = _now()
         findings, resolved = run_sync(ctx, parent_sync.findings if parent_sync else None)
+        # 切り替え前に字余り（A1）へ付けた「意図的」「誤検出」を、新しいコード（A5・A6）に写す
+        legacy = [*(parent_sync.findings if parent_sync else []), *self._own_sync_findings(tanka_id, revision.id)]
+        self._carry_over_feedback(tanka_id, findings, legacy, ctx.feedback)
         run = CheckRun(
             id="",
             phase="sync",
@@ -222,6 +225,26 @@ class Service:
         if saved is None:
             raise NotFound(tanka_id)
         return saved
+
+    def _own_sync_findings(self, tanka_id: str, revision_id: str) -> list[Finding]:
+        """その稿のこれまでの同期の指摘（再チェックのとき、切り替え前の結果を読み替えに使う）。"""
+        latest = _latest(self.repo.list_check_runs(tanka_id, revision_id), "sync")
+        return latest.findings if latest else []
+
+    def _carry_over_feedback(self, tanka_id: str, findings: list[Finding], legacy: list[Finding],
+                             feedback: dict[str, Feedback]) -> None:
+        """古いコードの指摘に付けた作者の判断を、読み替えた先の新しいコードにも付ける。
+
+        元の判断は消さない（切り替え前の稿の結果では、元のコードのまま折りたたむため）。
+        """
+        targets = {f.fingerprint for f in findings}
+        for old in legacy:
+            new = current_fingerprint(old)
+            if new == old.fingerprint or new not in targets or new in feedback or old.fingerprint not in feedback:
+                continue
+            carried = feedback[old.fingerprint].model_copy(update={"fingerprint": new})
+            self.repo.set_feedback(tanka_id, carried)
+            feedback[new] = carried
 
     # --- 非同期チェック ---
     def _queue_async(self, tanka_id: str, revision: Revision, trigger: str) -> CheckRun:

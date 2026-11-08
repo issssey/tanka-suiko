@@ -88,7 +88,7 @@ def test_transitions_across_revisions(service, fake_llm):
     r2 = save(service, t.id, body2, parent=r1.revision.id)
     assert r2.revision.parentRevisionId == r1.revision.id
     assert "C3:1" in r2.sync_run.resolvedFingerprints
-    assert {f.fingerprint: f.transition for f in r2.sync_run.findings} == {"A1:5": "new"}
+    assert {f.fingerprint: f.transition for f in r2.sync_run.findings} == {"A5:5": "new"}
     run2 = [r for r in service.repo.list_check_runs(t.id, r2.revision.id) if r.phase == "async"][0]
     assert {f.fingerprint: f.transition for f in run2.findings} == {"B1:寂しい": "continued"}
     assert run2.resolvedFingerprints and all(f.startswith("B2:") for f in run2.resolvedFingerprints)
@@ -384,3 +384,25 @@ def test_publication_lifecycle(service):
 
     export = service.export_user(USER)
     assert len(export["publications"]) == 2 and len(export["sequences"]) == 1
+
+
+def test_feedback_on_legacy_a1_excess_is_carried_over(service, fake_llm):
+    """切り替え前に字余り（A1）へ付けた「意図的」は、次の保存で A5・A6 にも付く（元の判断は残す）。"""
+    from app.models import Finding
+
+    t = service.create_tanka(USER)
+    body = "夕暮れの駅のホームで寂しくて君からの文字何度も読み返す"
+    r1 = save(service, t.id, body)
+    # 切り替え前の結果を再現する：同期の指摘を A1（字余り）にする
+    run = [r for r in service.repo.list_check_runs(t.id, r1.revision.id) if r.phase == "sync"][0]
+    legacy = Finding(code="A1", severity="medium", segmentNo=5, span=(20, 27), message="m",
+                     evidence={"kind": "字余り", "mora": 9, "expected": 7}, fingerprint="A1:5")
+    service.repo.update_check_run_if_active(t.id, r1.revision.id, run.model_copy(update={"findings": [legacy]}))
+    service.set_feedback(USER, t.id, "A1:5", "intentional", None, r1.revision.id)
+
+    r2 = save(service, t.id, body, parent=r1.revision.id, note="切り替え後")
+    assert {f.fingerprint: f.transition for f in r2.sync_run.findings}["A5:5"] == "continued"
+    assert r2.sync_run.resolvedFingerprints == []
+    fb = {f.fingerprint: f for f in service.repo.list_feedback(t.id)}
+    assert fb["A5:5"].status == "intentional" and fb["A5:5"].revisionNo == 1
+    assert "A1:5" in fb  # 元の判断は残す

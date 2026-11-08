@@ -14,6 +14,8 @@ export interface PatternInfo {
   positive: string[];
   negative: string[];
   requiresParent: boolean;
+  /** 根拠（論文・入門書） */
+  source: string | null;
 }
 
 export const PATTERNS: PatternInfo[] = patternsJson.patterns as PatternInfo[];

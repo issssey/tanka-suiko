@@ -104,6 +104,12 @@ function PatternDetail({ id, pattern: p }: { id: string; pattern: PatternInfo })
         </dd>
         <dt>重大度</dt>
         <dd>{p.severityNote ?? `「${SEVERITY_LABEL[p.severity]}」`}</dd>
+        {p.source && (
+          <>
+            <dt>根拠</dt>
+            <dd>{p.source}</dd>
+          </>
+        )}
       </dl>
       <p className="small muted" style={{ margin: 0 }}>当てはまっても、直すかどうかはあなたが決めます。意図して使っている場合は「意図的」にしておけます。</p>
     </div>

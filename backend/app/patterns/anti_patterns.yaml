@@ -1,10 +1,11 @@
 # 短歌アンチパターンのマスタ。
 # - method: rule（同期ルール）/ rule_history（履歴ルール・非同期）/ llm（LLM・非同期）
 # - fingerprint: word（コード＋原形）/ segment（コード＋句番号）/ poem（コードのみ）
-# - severity: high / medium / low（パターンごとに固定。A1のみ字足らず・字余りで分ける）
+# - severity: high / medium / low（パターンごとに固定）
 # - requiresParent: true のものは初稿では判定しない
 # definition / criteria / examples はLLMのプロンプトに使う（ルールのものは説明用）。
-version: "2026-11-07.2"
+# source は根拠（画面のパターン一覧に出す。LLMには渡さない）。
+version: "2026-11-09.1"  # 論文リサーチによる見直し（27→30項目）
 
 categories:
   A: 定型・リズム
@@ -15,15 +16,16 @@ categories:
 
 patterns:
   - code: A1
-    name: 字余り・字足らず
+    name: 字足らず
     method: rule
     phase: sync
-    severity: {shortage: high, excess: medium}
+    severity: high
     fingerprint: segment
-    definition: 句のモーラ数が五七五七七の定型と合わない。
-    criteria: 確定した読みのモーラ数を句ごとに定型と比べる。
-    positive: ["五句目「何度も読み返す」が9音（定型は7音）", "一句目「夕べ」のように3音しかない"]
-    negative: ["音数を数えると5・7・5・7・7に収まっている"]
+    source: "俵万智の研究（現代短歌の約47%が字余り。字余りと字足らずは分けて扱う）"
+    definition: 句のモーラ数が五七五七七の定型より少ない。
+    criteria: 確定した読みのモーラ数を句ごとに定型と比べ、少なければ該当。字余りは句の位置でA5・A6が扱う。
+    positive: ["初句「夕べ」のように3音しかない"]
+    negative: ["音数を数えると5・7・5・7・7に収まっている", "字余り（A5・A6で扱う）"]
 
   - code: A2
     name: 字数合わせの埋め草
@@ -31,6 +33,7 @@ patterns:
     phase: async
     severity: medium
     fingerprint: segment
+    source: "加藤（二）：晶子は冗語を削った"
     definition: 意味の上では不要な語を、音数を合わせるためだけに入れている。
     criteria: その語を除いても意味がほぼ変わらず、主に音数の調整として働いている場合に該当。強調や響きとして機能している場合は非該当。
     positive: ["「とても」「ただ」「そっと」が音数合わせのためだけに置かれている"]
@@ -42,6 +45,7 @@ patterns:
     phase: async
     severity: low
     fingerprint: poem
+    source: "俵：切れ目の解釈が割れる歌がある"
     definition: 一首の中に句切れが三つ以上ある、またはどこで切れるかが読み取りにくい。
     criteria: 終止形・命令形・終助詞・体言止めなどで意味が切れる箇所を数える。三つ以上、または切れ目の解釈が割れる場合に該当。
     positive: ["「春が来た。花が咲いた。君が笑う。」のように、短い文が三つ以上並んで切れる"]
@@ -53,10 +57,35 @@ patterns:
     phase: sync
     severity: low
     fingerprint: segment
-    definition: 一語が二つの句にまたがっている（句またがり）、または句の途中で文が切れている（句割れ）。
-    criteria: 形態素の範囲が句の境界をまたぐか、句の途中に文末（句点・終止形＋後続語・終助詞）があるかで判定する。
+    source: "俵：意味と句の切れ目がずれると読みが割れる"
+    definition: 意味の切れ目と句の切れ目がずれている。一語が二つの句にまたがる（句またがり）か、句の途中で文が切れる（句割れ）。
+    criteria: 形態素の範囲が句の境界をまたぐか、句の途中に文末（句点・終止形＋後続語・終助詞）があるかで判定する。句が「っ」「ん」で始まるか「っ」で終わる場合は、特に読みにくくなりやすいと添える。
     positive: ["一語「文字」が四句目と五句目に分かれる（句またがり）", "「並ぶ。君の」のように句の途中で文が終わる（句割れ）"]
     negative: ["語の切れ目と句の切れ目がそろっている"]
+
+  - code: A5
+    name: 字余り（三句・結句）
+    method: rule
+    phase: sync
+    severity: medium
+    fingerprint: segment
+    source: "俵：三句・結句はリズムの終わりで、字余りが最も少ない。高山・俵：母音の連続と字余り"
+    definition: 三句または結句のモーラ数が定型より多い。
+    criteria: 確定した読みで、三句が6音以上、結句が8音以上なら該当。句の途中に母音の連続や長音・撥音があれば「読むと定型に近く聞こえることがあります」と添える（重大度は変えない）。
+    positive: ["結句「何度も読み返す」が9音"]
+    negative: ["初句だけが6音（A6で扱う）"]
+
+  - code: A6
+    name: 字余り（初句・二句・四句）
+    method: rule
+    phase: sync
+    severity: low
+    fingerprint: segment
+    source: "俵：初句と四句の字余りは、三句・結句の2倍以上"
+    definition: 初句・二句・四句のモーラ数が定型より多い。
+    criteria: 確定した読みで、初句が6音以上、二句・四句が8音以上なら該当。余った音の扱いはA5と同じ。初句の字余りは現代短歌でよく見られることも添える。
+    positive: ["初句「たそがれの駅」が7音"]
+    negative: ["結句の字余り（A5で扱う）"]
 
   - code: B1
     name: 感情語の直接表出
@@ -64,6 +93,7 @@ patterns:
     phase: async
     severity: medium
     fingerprint: word
+    source: "短歌の入門書でよく挙げられる観点"
     definition: 「寂しい」「悲しい」「嬉しい」など、感情そのものを表す語で感情を言っている。
     criteria: 作中主体の感情を感情語で直接述べていれば該当。他者の感情の描写や、感情語が別の意味（比喩・引用）で使われている場合は非該当。
     positive: ["夕暮れの駅のホームで寂しくて", "嬉しくて走り出したる"]
@@ -75,9 +105,10 @@ patterns:
     phase: async
     severity: medium
     fingerprint: word
+    source: "加藤（一）：初心者の表現は類型的になりやすい"
     definition: 使い古された決まり文句をそのまま使っている。
-    criteria: 「頬を伝う涙」「満天の星」「時が止まる」「胸が張り裂ける」のように、多くの歌や文章で繰り返された定型表現であれば該当。
-    positive: ["頬を伝う涙", "満天の星", "時が止まった"]
+    criteria: 「頬を伝う涙」「満天の星」「時が止まる」「胸が張り裂ける」のように、多くの歌や文章で繰り返された定型表現であれば該当。「桜と春」「雪と冬」のような決まりきった季節と素材の組み合わせも該当。
+    positive: ["頬を伝う涙", "満天の星", "時が止まった", "「桜」と「春の日」のような決まりきった組み合わせ"]
     negative: ["定型表現をずらして新しい意味を出している"]
 
   - code: B3
@@ -86,6 +117,7 @@ patterns:
     phase: async
     severity: medium
     fingerprint: word
+    source: "加藤（一）"
     definition: よく見る比喩をそのまま使っている、または「〜のように」「〜みたいに」が重なっている。
     criteria: 比喩の組み合わせが陳腐（「宝石のような星」「雪のように白い」）か、直喩の標識が二回以上あれば該当。
     positive: ["宝石のような星", "天使のような寝顔"]
@@ -97,6 +129,7 @@ patterns:
     phase: async
     severity: low
     fingerprint: word
+    source: "加藤（二）：実感に即した語へ直した"
     definition: 「愛」「希望」「未来」「永遠」「心」など、具体物を伴わない抽象語に頼っている。
     criteria: 抽象語が一首に二つ以上あるか、一つでも歌の中心を抽象語だけで支えている場合に該当。
     positive: ["「愛と希望の未来へと」のように抽象語が並ぶ"]
@@ -108,6 +141,7 @@ patterns:
     phase: async
     severity: low
     fingerprint: word
+    source: "加藤（一）、八木：オノマトペに偏りやすい"
     definition: 「キラキラ」「ドキドキ」「しとしと」など、辞書的で使い古されたオノマトペを使っている。
     criteria: 一般的な擬音語・擬態語をそのままの意味で使っていれば該当。作者独自の音の写し方は非該当。
     positive: ["「星がキラキラ光る」「胸がドキドキする」"]
@@ -119,6 +153,7 @@ patterns:
     phase: async
     severity: medium
     fingerprint: segment
+    source: "加藤（二）：冗語の削除"
     definition: 同じ意味を別の語で繰り返している（重言を含む）。
     criteria: 「白い雪」「夜の闇」「一人ぼっちで孤独」のように、片方の語がもう片方の意味を含んでいれば該当。
     positive: ["「白い雪」「夜の闇」「一人ぼっちで孤独」"]
@@ -130,6 +165,7 @@ patterns:
     phase: sync
     severity: low
     fingerprint: segment
+    source: "短歌の入門書でよく挙げられる観点"
     definition: 「！」「？」「…」「――」などの記号を多く使っている。
     criteria: 本文中の記号（括弧類を含む）の数がしきい値以上なら、記号を含む句ごとに指摘する。
     positive: ["「来たよ！ほんとに？」のように「！」「？」が重なる"]
@@ -137,14 +173,27 @@ patterns:
     params:
       minSymbols: 2
 
+  - code: B8
+    name: 作者だけが分かる語・前提
+    method: llm
+    phase: async
+    severity: medium
+    fingerprint: word
+    source: "加藤（二）：晶子は、分かりにくい語を具体的にし、誤解されやすい語を置き換えた"
+    definition: 初めて読む人には、何を指すか分からない語や、別の意味に取られやすい語がある。
+    criteria: 説明のない身内の呼び名・内輪の略語・「例の」「いつもの」など、作者の事情を知らないと指すものが定まらない語なら該当。一首の中で何か分かるものや、広く知られた固有名は非該当。B4（意味は分かるが具体物がない）とは別で、こちらは具体的だが読者には指すものが分からない語。
+    positive: ["「ポチの代わりに」（犬だと分かる手がかりがない）", "「例の店で」"]
+    negative: ["「祖母の家」「富士山」", "一首の中で説明されている呼び名"]
+
   - code: C1
     name: 文語と口語の混在
     method: llm
     phase: async
     severity: medium
     fingerprint: poem
+    source: "加藤（三）"
     definition: 文語の助動詞・活用と口語の助動詞・活用が一首の中で混ざっている。
-    criteria: 「けり」「なり」「たり」「ぬ」などの文語と、「た」「だ」「ている」などの口語が混在していれば該当。意図的な効果が明らかでも、混在していれば該当とする。
+    criteria: 「けり」「なり」「たり」「ぬ」などの文語と、「た」「だ」「ている」などの口語が混在していれば該当。意図的な効果が明らかでも、混在していれば該当とする。文法（助動詞・活用）だけを見る。語彙の調子のずれはC6で扱う。
     positive: ["「花咲けり」（文語）と「君が笑った」（口語）が一首にある"]
     negative: ["文語なら文語、口語なら口語でそろっている"]
 
@@ -154,25 +203,28 @@ patterns:
     phase: sync
     severity: high
     fingerprint: poem
+    source: "加藤（三）：寛・晶子も仮名遣いを直した"
     definition: 歴史的仮名遣いと現代仮名遣いが一首の中で混ざっている。
     criteria: 旧仮名の印（ゐ・ゑ、語中語末のハ行表記）と新仮名の印（ワ行五段などで旧仮名ならハ行になる箇所のア行表記）が両方あれば該当。
     positive: ["「思ひ」（旧仮名）と「言う」（新仮名）が一首にある"]
     negative: ["「思ひ」「言ふ」のように旧仮名でそろっている"]
 
   - code: C3
-    name: 「の」の連続・同じ助詞の反復
+    name: 同じ助詞・句末の音の反復
     method: rule
     phase: sync
     severity: low
     fingerprint: segment
-    definition: 格助詞「の」が短い間に三つ以上続く、または同じ助詞が一首に何度も出る。
-    criteria: 「の」が間に三語以内で三つ以上続けば該当。「の」以外の同じ格助詞・係助詞が一首に三回以上出ても該当。
-    positive: ["「夕暮れの駅のホームの」のように「の」が三つ続く", "「に」が一首に三回出る"]
+    source: "早田：句尾どうしは同じ音が避けられる"
+    definition: 格助詞「の」が短い間に三つ以上続く、同じ助詞が一首に何度も出る、または句末が同じ音で終わる句が多い。
+    criteria: 「の」が間に三語以内で三つ以上続けば該当。「の」以外の同じ格助詞・係助詞が一首に三回以上出ても該当。句末（読みの最後の音）が同じ句が三つ以上あっても該当。
+    positive: ["「夕暮れの駅のホームの」のように「の」が三つ続く", "「に」が一首に三回出る", "三つの句が「〜て」で終わる"]
     negative: ["「の」は二つまでで、助詞の使い方が散らばっている"]
     params:
       noChainMin: 3
       noChainMaxGap: 3
       sameParticleMin: 3
+      sameEndingMin: 3
 
   - code: C4
     name: 時制の揺れ
@@ -180,23 +232,38 @@ patterns:
     phase: async
     severity: medium
     fingerprint: poem
+    source: "短歌の入門書でよく挙げられる観点"
     definition: 過去と現在の時制が理由なく揺れている。
     criteria: 一首の中で過去形と現在形が混在し、回想と現在の区別など読みの手がかりがない場合に該当。
     positive: ["「駅に着いた」と「君が待っている」が、回想か今かの手がかりなく並ぶ"]
     negative: ["回想の「た」と今の「る」が、時の移りとして読める"]
 
   - code: C5
-    name: 不要な一人称主語
+    name: 作中主体の説明（一人称・認識動詞）
     method: rule
     phase: sync
     severity: low
     fingerprint: word
-    definition: 「私」「僕」「われ」など一人称の主語を書いている。
-    criteria: 一人称の代名詞が本文にあれば指摘する（必要かどうかは作者が決める）。
-    positive: ["「私は悲しく」の「私」"]
-    negative: ["主語を書かず、場面から作中主体が分かる"]
+    source: "加藤（二）：見ている説明は省き、対象を前に出す"
+    definition: 「私」「僕」「われ」など一人称の主語や、「見る」「思う」「気づく」「感じる」など作中主体の認識を説明する動詞を書いている。
+    criteria: 一人称の代名詞、または認識動詞が本文にあれば指摘する（必要かどうかは作者が決める）。見ている・思っている説明を省くと、対象が前に出ることがある。
+    positive: ["「私は悲しく」の「私」", "「夕焼けを見る」の「見る」"]
+    negative: ["主語や認識の説明を書かず、対象そのものを描いている"]
     params:
       pronouns: [私, わたし, わたくし, あたし, 僕, ぼく, 俺, おれ, 我, われ, 吾, 吾れ, われら, 自分]
+      cognitionVerbs: [見る, 思う, 想う, 気付く, 気づく, 感じる, 眺める, 見つめる, 覚える]
+
+  - code: C6
+    name: 文体に合わない語
+    method: llm
+    phase: async
+    severity: low
+    fingerprint: word
+    source: "加藤（二）（三）：晶子は古臭く大仰な語を避け、寛・晶子は歌に馴染まない語を替えた"
+    definition: 一首の文体に対して、古風すぎる語・大仰な語が浮いている。
+    criteria: 推定した文体（口語／文語）と語の調子がずれ、実感から離れた借り物の言葉になっていれば該当。文法（助動詞・活用）の混在はC1で扱う。現代の物の名前は文体の混在とみなさない。
+    positive: ["口語の歌の「麗しき君」「嗚呼」「黄昏の刻」"]
+    negative: ["文語の歌の「コンビニの灯」"]
 
   - code: D1
     name: 因果の説明
@@ -204,6 +271,7 @@ patterns:
     phase: async
     severity: medium
     fingerprint: word
+    source: "加藤（二）：散文的な言い回しを直した"
     definition: 「〜だから」「〜ので」「〜ため」など、理由と結果を説明している。
     criteria: 因果を表す接続語・接続助詞で出来事と感情や行為を結んでいれば該当。該当箇所はその接続語の形態素で示す。
     positive: ["「雨が降ったので傘をさす」のように、理由と結果を「ので」「から」でつなぐ"]
@@ -215,6 +283,7 @@ patterns:
     phase: async
     severity: medium
     fingerprint: poem
+    source: "短歌の入門書でよく挙げられる観点"
     definition: 結句（五句目）で、上の句の意味をまとめたり、教訓や感想を述べたりしている。
     criteria: 結句が描写ではなく、それまでの内容の解説・総括・教訓になっていれば該当。
     positive: ["結句が「それが人生なのだ」「忘れずにいよう」のようなまとめや教訓になっている"]
@@ -226,21 +295,11 @@ patterns:
     phase: async
     severity: low
     fingerprint: poem
+    source: "加藤（二）：効果の大きい句を残す"
     definition: 一首に場所・時間・人物・行為・感情など素材が多く、焦点がぼやけている。
     criteria: 独立した素材（場面・物・行為）が四つ以上並び、中心が読み取りにくい場合に該当。
     positive: ["一首に「駅」「夕暮れ」「君」「雨」「手紙」「涙」が並ぶ"]
     negative: ["素材が二つか三つに絞られている"]
-
-  - code: D4
-    name: 取り合わせが近すぎる
-    method: llm
-    phase: async
-    severity: low
-    fingerprint: word
-    definition: 組み合わせた二つの素材が近すぎて、互いに響き合う距離がない。
-    criteria: 「桜と春」「雪と冬」のように、一方からもう一方が自然に連想される組み合わせであれば該当。該当箇所は後に出る方の語で示す。
-    positive: ["「桜」と「春の日」、「雪」と「冬の朝」"]
-    negative: ["「信号の青」と「白い息」のように、離れた素材が響き合う"]
 
   - code: D5
     name: 視点・場面の分裂
@@ -248,6 +307,7 @@ patterns:
     phase: async
     severity: medium
     fingerprint: poem
+    source: "短歌の入門書でよく挙げられる観点"
     definition: 一首の中で視点（誰が見ているか）や場面が途中で切り替わり、まとまらない。
     criteria: 視点人物や時間・場所の切り替えに読みの手がかりがない場合に該当。
     positive: ["上の句は自分の部屋、下の句は突然別の街の昼になっている"]
@@ -259,6 +319,7 @@ patterns:
     phase: async
     severity: low
     fingerprint: poem
+    source: "加藤（一）"
     definition: 「花が笑う」「風がささやく」など、よくある擬人化をそのまま使っている。
     criteria: 自然物や物に人の動作・感情を与える表現が、ありふれた形であれば該当。
     positive: ["「花が笑う」「風がささやく」「月が見守る」"]
@@ -270,6 +331,7 @@ patterns:
     phase: async
     severity: medium
     fingerprint: poem
+    source: "短歌の入門書でよく挙げられる観点"
     requiresParent: true
     definition: 親の版にあった具体的な描写が、推敲で抽象的な語や説明に置き換わった。
     criteria: 親の版と比べ、具体物・固有の動作が抽象語・一般的な語に変わっていれば該当。
@@ -282,6 +344,7 @@ patterns:
     phase: async
     severity: medium
     fingerprint: poem
+    source: "短歌の入門書でよく挙げられる観点"
     requiresParent: true
     definition: 推敲で、説明的な語（理由・感情・まとめ）が増えた。
     criteria: 親の版と比べ、因果・感情語・解説の語が増えていれば該当。
@@ -294,6 +357,7 @@ patterns:
     phase: async
     severity: low
     fingerprint: poem
+    source: "短歌の入門書でよく挙げられる観点"
     requiresParent: true
     definition: 一度消した表現が、後の版で同じ句に戻ってきた。
     criteria: 句ごとの本文を履歴全体で比べ、親の版より前にあった表現が、親の版で消えたあと今回戻っていれば該当。
@@ -306,6 +370,7 @@ patterns:
     phase: async
     severity: medium
     fingerprint: poem
+    source: "加藤（一）（三）：作者の意図が上書きされる危険"
     requiresParent: true
     definition: 初稿の中心にあった素材や発見が、推敲の過程でなくなった。
     criteria: 初稿の中心的な素材・場面・発見が今回の版に残っていなければ該当。
@@ -318,8 +383,9 @@ patterns:
     phase: async
     severity: medium
     fingerprint: poem
+    source: "加藤（一）"
     requiresParent: true
     definition: 字余り・字足らずを直すために、表現が弱くなった。
-    criteria: ルールの結果（A1の変化）として音数が定型に近づいた句について、親の版の表現より具体性や強さが落ちていれば該当。
+    criteria: ルールの結果（A1・A5・A6の変化）として音数が定型に近づいた句について、親の版の表現より具体性や強さが落ちていれば該当。
     positive: ["字余りを直すために「ひとり寂しく」を「寂しく」に縮め、意味が薄くなった"]
     negative: ["音数を整えつつ、表現の具体性も保っている"]

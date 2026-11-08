@@ -33,13 +33,13 @@ def test_full_flow(service):
     out = rev.json()
     assert out["revisionNo"] == 1
     assert out["asyncRunStatus"] == "queued"
-    assert [f["code"] for f in out["syncRun"]["findings"]] == ["A1"]
+    assert [f["code"] for f in out["syncRun"]["findings"]] == ["A5"]
     f = out["syncRun"]["findings"][0]
-    assert f["fingerprint"] == "A1:5" and f["transition"] == "new" and f["span"] == [14 + 6, 27]
+    assert f["fingerprint"] == "A5:5" and f["transition"] == "new" and f["span"] == [14 + 6, 27]
 
-    fb = c.put(f"/tankas/{tid}/feedback/A1:5", json={"status": "intentional"}, headers=AUTH)
+    fb = c.put(f"/tankas/{tid}/feedback/A5:5", json={"status": "intentional"}, headers=AUTH)
     assert fb.status_code == 200
-    assert c.delete(f"/tankas/{tid}/feedback/A1:5", headers=AUTH).status_code == 204
+    assert c.delete(f"/tankas/{tid}/feedback/A5:5", headers=AUTH).status_code == 204
 
     re = c.post(f"/tankas/{tid}/revisions/{out['revisionId']}/recheck", headers=AUTH)
     assert re.status_code == 201

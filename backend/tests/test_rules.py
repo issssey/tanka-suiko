@@ -19,19 +19,40 @@ def ctx_for(rev, patterns, **kw):
     return CheckContext(revision=rev, patterns=patterns, **kw)
 
 
-def test_a1_excess_is_medium_shortage_is_high(patterns):
+def test_excess_in_third_or_last_is_a5_medium(patterns):
     rev = make_revision(EKI)
     f = finalize(MoraRule().check(ctx_for(rev, patterns)), patterns)
     assert len(f) == 1
-    assert f[0].code == "A1" and f[0].segmentNo == 5
-    assert f[0].severity == "medium"  # 字余りは medium（設計書どおり）
-    assert f[0].fingerprint == "A1:5"
+    assert f[0].code == "A5" and f[0].segmentNo == 5
+    assert f[0].severity == "medium"
+    assert f[0].fingerprint == "A5:5"
     assert "9モーラ" in f[0].message and "定型は7" in f[0].message
+    # 「なんどもよみかえす」：途中に撥音「ん」と母音の連続「かえ」→ 定型に近く聞こえることがある
+    assert f[0].evidence["extraMora"] == 2
+    assert f[0].evidence["sounds"] == ["moraicNasal", "vowelSequence"]
+    assert "読むと定型に近く聞こえることがあります" in f[0].message
 
+
+def test_excess_in_first_second_fourth_is_a6_low(patterns):
+    rev = make_revision(EKI, readings={1: "ゆうぐれのえき"})
+    f = {x.code: x for x in finalize(MoraRule().check(ctx_for(rev, patterns)), patterns)}
+    assert f["A6"].segmentNo == 1 and f["A6"].severity == "low" and f["A6"].fingerprint == "A6:1"
+    assert "現代短歌でもよく見られます" in f["A6"].message
+
+
+def test_shortage_is_a1_high(patterns):
     short = make_revision(EKI, readings={1: "ゆうべの"})
-    f2 = finalize(MoraRule().check(ctx_for(short, patterns)), patterns)
-    sev = {x.segmentNo: x.severity for x in f2}
-    assert sev[1] == "high"  # 字足らずは high
+    f = {x.segmentNo: x for x in finalize(MoraRule().check(ctx_for(short, patterns)), patterns)}
+    assert f[1].code == "A1" and f[1].severity == "high"  # 字足らずは high
+    assert f[1].evidence["kind"] == "字足らず"
+
+
+def test_extra_sounds():
+    from app.checkers.rules import extra_sounds
+
+    assert extra_sounds("とうきょうえき") == ["longVowel", "vowelSequence"]  # 「とう」は長音、「うえ」は母音の連続
+    assert extra_sounds("かーてん") == ["longVowel"]  # 末尾の「ん」は句の途中ではない
+    assert extra_sounds("さくらさく") == []
 
 
 def test_a4_kumatagari(patterns):
@@ -89,6 +110,35 @@ def test_c3_same_particle(patterns):
     assert any(x.evidence.get("particle") == "に" for x in found)
 
 
+def test_c3_same_ending_sound(patterns):
+    body = "あさがきてひるがきてまたよるがきてゆめのなかにてきみをまつかな"
+    rev = make_revision(body, texts=["あさがきて", "ひるがきてまた", "よるがきて", "ゆめのなかにて", "きみをまつかな"])
+    found = [x for x in ParticleRule().check(ctx_for(rev, patterns)) if x.evidence.get("kind") == "句末の音"]
+    assert len(found) == 1 and found[0].evidence["sound"] == "て" and found[0].evidence["segments"] == [1, 3, 4]
+
+
+def test_c5_cognition_verb(patterns):
+    rev = make_revision("夕暮れの駅のホームで空を見る君からの文字何度も読み返す")
+    f = finalize(FirstPersonRule().check(ctx_for(rev, patterns)), patterns)
+    assert [x.fingerprint for x in f] == ["C5:見る"]
+    assert "認識" in f[0].message
+
+
+def test_legacy_a1_excess_is_compared_as_a5_a6(patterns):
+    """切り替え前の版の A1（字余り）は、A5・A6 として比べる（解消と新規が同時に出ない）。"""
+    from app.models import Finding
+
+    legacy = Finding(code="A1", severity="medium", segmentNo=5, span=(20, 27), message="m",
+                     evidence={"kind": "字余り", "mora": 9, "expected": 7}, fingerprint="A1:5")
+    cur, resolved = run_sync(ctx_for(make_revision(EKI), patterns), [legacy])
+    assert {f.fingerprint: f.transition for f in cur}["A5:5"] == "continued"
+    assert resolved == []
+    # 字足らずの A1 はそのまま A1
+    short = Finding(code="A1", severity="high", segmentNo=1, message="m", evidence={"kind": "字足らず"}, fingerprint="A1:1")
+    _, resolved2 = run_sync(ctx_for(make_revision(EKI), patterns), [short])
+    assert resolved2 == ["A1:1"]
+
+
 def test_c5_first_person(patterns):
     rev = make_revision("私だけ駅のホームで立ち止まる君からの文字何度も読み返す")
     f = finalize(FirstPersonRule().check(ctx_for(rev, patterns)), patterns)
@@ -132,7 +182,7 @@ def test_transitions(patterns):
     prev, _ = run_sync(ctx_for(r2, patterns), None)
     cur, resolved = run_sync(ctx_for(r3, patterns, parent=r2), prev)
     assert "C3:1" in resolved  # 「の」の連続は解消
-    assert {f.fingerprint: f.transition for f in cur}["A1:5"] == "new"
+    assert {f.fingerprint: f.transition for f in cur}["A5:5"] == "new"
 
     # 親がないときは解消なし
     assert apply_transitions(cur, None) == []

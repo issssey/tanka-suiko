@@ -10,20 +10,33 @@ from .llm import LLMChecker
 from .rules import HISTORY_RULES, SYNC_RULES
 
 
+def current_fingerprint(f: Finding) -> str:
+    """古いコードの指摘を、いまのコードの fingerprint に読み替える。
+
+    2026-11-09 の見直しで、A1（字余り・字足らず）の字余りを句の位置で A5（三句・結句）と
+    A6（初句・二句・四句）に分けた。切り替え前に保存した版の A1（字余り）は、比べるときに
+    A5・A6 として扱う（そうしないと切り替え直後の保存で「解消」と「新規」が同時に出る）。
+    """
+    if f.code == "A1" and f.evidence.get("kind") == "字余り" and f.segmentNo:
+        return f"{'A5' if f.segmentNo in (3, 5) else 'A6'}:{f.segmentNo}"
+    return f.fingerprint
+
+
 def apply_transitions(findings: list[Finding], previous: list[Finding] | None) -> list[str]:
     """親の版の指摘と突き合わせて transition を付け、解消した fingerprint を返す。
 
     previous が None（親がない・親の結果がない）ならすべて new、解消はなし。
     同期フェーズは同期どうし、非同期フェーズは非同期どうしで突き合わせる（呼び出し側で渡し分ける）。
+    解消した fingerprint は親の版の指摘のもの（画面で親の指摘を引くため）を返す。
     """
-    prev_fps = {f.fingerprint for f in previous or []}
+    prev = {current_fingerprint(f): f.fingerprint for f in previous or []}
     current_fps = set()
     for f in findings:
-        f.transition = "continued" if f.fingerprint in prev_fps else "new"
+        f.transition = "continued" if f.fingerprint in prev else "new"
         current_fps.add(f.fingerprint)
     if previous is None:
         return []
-    return sorted(prev_fps - current_fps)
+    return sorted(orig for fp, orig in prev.items() if fp not in current_fps)
 
 
 def run_sync(ctx: CheckContext, previous_sync: list[Finding] | None) -> tuple[list[Finding], list[str]]:

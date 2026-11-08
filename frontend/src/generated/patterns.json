@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-07.2",
+  "version": "2026-11-09.1",
   "categories": {
     "A": "定型・リズム",
     "B": "語彙・表現",
@@ -10,21 +10,22 @@
   "patterns": [
     {
       "code": "A1",
-      "name": "字余り・字足らず",
+      "name": "字足らず",
       "category": "A",
       "phase": "sync",
-      "severity": "medium",
-      "severityNote": "字足らずは高、字余りは中",
-      "definition": "句のモーラ数が五七五七七の定型と合わない。",
-      "criteria": "確定した読みのモーラ数を句ごとに定型と比べる。",
+      "severity": "high",
+      "severityNote": null,
+      "definition": "句のモーラ数が五七五七七の定型より少ない。",
+      "criteria": "確定した読みのモーラ数を句ごとに定型と比べ、少なければ該当。字余りは句の位置でA5・A6が扱う。",
       "positive": [
-        "五句目「何度も読み返す」が9音（定型は7音）",
-        "一句目「夕べ」のように3音しかない"
+        "初句「夕べ」のように3音しかない"
       ],
       "negative": [
-        "音数を数えると5・7・5・7・7に収まっている"
+        "音数を数えると5・7・5・7・7に収まっている",
+        "字余り（A5・A6で扱う）"
       ],
-      "requiresParent": false
+      "requiresParent": false,
+      "source": "俵万智の研究（現代短歌の約47%が字余り。字余りと字足らずは分けて扱う）"
     },
     {
       "code": "A2",
@@ -41,7 +42,8 @@
       "negative": [
         "「ただ」が限定の意味をはっきり担っている"
       ],
-      "requiresParent": false
+      "requiresParent": false,
+      "source": "加藤（二）：晶子は冗語を削った"
     },
     {
       "code": "A3",
@@ -58,7 +60,8 @@
       "negative": [
         "二句切れの一か所だけで、上下がはっきり分かれる"
       ],
-      "requiresParent": false
+      "requiresParent": false,
+      "source": "俵：切れ目の解釈が割れる歌がある"
     },
     {
       "code": "A4",
@@ -67,8 +70,8 @@
       "phase": "sync",
       "severity": "low",
       "severityNote": null,
-      "definition": "一語が二つの句にまたがっている（句またがり）、または句の途中で文が切れている（句割れ）。",
-      "criteria": "形態素の範囲が句の境界をまたぐか、句の途中に文末（句点・終止形＋後続語・終助詞）があるかで判定する。",
+      "definition": "意味の切れ目と句の切れ目がずれている。一語が二つの句にまたがる（句またがり）か、句の途中で文が切れる（句割れ）。",
+      "criteria": "形態素の範囲が句の境界をまたぐか、句の途中に文末（句点・終止形＋後続語・終助詞）があるかで判定する。句が「っ」「ん」で始まるか「っ」で終わる場合は、特に読みにくくなりやすいと添える。",
       "positive": [
         "一語「文字」が四句目と五句目に分かれる（句またがり）",
         "「並ぶ。君の」のように句の途中で文が終わる（句割れ）"
@@ -76,7 +79,44 @@
       "negative": [
         "語の切れ目と句の切れ目がそろっている"
       ],
-      "requiresParent": false
+      "requiresParent": false,
+      "source": "俵：意味と句の切れ目がずれると読みが割れる"
+    },
+    {
+      "code": "A5",
+      "name": "字余り（三句・結句）",
+      "category": "A",
+      "phase": "sync",
+      "severity": "medium",
+      "severityNote": null,
+      "definition": "三句または結句のモーラ数が定型より多い。",
+      "criteria": "確定した読みで、三句が6音以上、結句が8音以上なら該当。句の途中に母音の連続や長音・撥音があれば「読むと定型に近く聞こえることがあります」と添える（重大度は変えない）。",
+      "positive": [
+        "結句「何度も読み返す」が9音"
+      ],
+      "negative": [
+        "初句だけが6音（A6で扱う）"
+      ],
+      "requiresParent": false,
+      "source": "俵：三句・結句はリズムの終わりで、字余りが最も少ない。高山・俵：母音の連続と字余り"
+    },
+    {
+      "code": "A6",
+      "name": "字余り（初句・二句・四句）",
+      "category": "A",
+      "phase": "sync",
+      "severity": "low",
+      "severityNote": null,
+      "definition": "初句・二句・四句のモーラ数が定型より多い。",
+      "criteria": "確定した読みで、初句が6音以上、二句・四句が8音以上なら該当。余った音の扱いはA5と同じ。初句の字余りは現代短歌でよく見られることも添える。",
+      "positive": [
+        "初句「たそがれの駅」が7音"
+      ],
+      "negative": [
+        "結句の字余り（A5で扱う）"
+      ],
+      "requiresParent": false,
+      "source": "俵：初句と四句の字余りは、三句・結句の2倍以上"
     },
     {
       "code": "B1",
@@ -94,7 +134,8 @@
       "negative": [
         "「寂しい」という看板の店"
       ],
-      "requiresParent": false
+      "requiresParent": false,
+      "source": "短歌の入門書でよく挙げられる観点"
     },
     {
       "code": "B2",
@@ -104,16 +145,18 @@
       "severity": "medium",
       "severityNote": null,
       "definition": "使い古された決まり文句をそのまま使っている。",
-      "criteria": "「頬を伝う涙」「満天の星」「時が止まる」「胸が張り裂ける」のように、多くの歌や文章で繰り返された定型表現であれば該当。",
+      "criteria": "「頬を伝う涙」「満天の星」「時が止まる」「胸が張り裂ける」のように、多くの歌や文章で繰り返された定型表現であれば該当。「桜と春」「雪と冬」のような決まりきった季節と素材の組み合わせも該当。",
       "positive": [
         "頬を伝う涙",
         "満天の星",
-        "時が止まった"
+        "時が止まった",
+        "「桜」と「春の日」のような決まりきった組み合わせ"
       ],
       "negative": [
         "定型表現をずらして新しい意味を出している"
       ],
-      "requiresParent": false
+      "requiresParent": false,
+      "source": "加藤（一）：初心者の表現は類型的になりやすい"
     },
     {
       "code": "B3",
@@ -131,7 +174,8 @@
       "negative": [
         "比喩の組み合わせが作者独自で、物の新しい見え方を示している"
       ],
-      "requiresParent": false
+      "requiresParent": false,
+      "source": "加藤（一）"
     },
     {
       "code": "B4",
@@ -148,7 +192,8 @@
       "negative": [
         "「信号の青」のように、目に見える物で場面を示している"
       ],
-      "requiresParent": false
+      "requiresParent": false,
+      "source": "加藤（二）：実感に即した語へ直した"
     },
     {
       "code": "B5",
@@ -165,7 +210,8 @@
       "negative": [
         "「しゅわしゅわと」のように音を作者が独自に写している"
       ],
-      "requiresParent": false
+      "requiresParent": false,
+      "source": "加藤（一）、八木：オノマトペに偏りやすい"
     },
     {
       "code": "B6",
@@ -182,7 +228,8 @@
       "negative": [
         "「青い雪」のように、修飾が新しい情報を足している"
       ],
-      "requiresParent": false
+      "requiresParent": false,
+      "source": "加藤（二）：冗語の削除"
     },
     {
       "code": "B7",
@@ -199,7 +246,28 @@
       "negative": [
         "記号が一つだけ、または使っていない"
       ],
-      "requiresParent": false
+      "requiresParent": false,
+      "source": "短歌の入門書でよく挙げられる観点"
+    },
+    {
+      "code": "B8",
+      "name": "作者だけが分かる語・前提",
+      "category": "B",
+      "phase": "async",
+      "severity": "medium",
+      "severityNote": null,
+      "definition": "初めて読む人には、何を指すか分からない語や、別の意味に取られやすい語がある。",
+      "criteria": "説明のない身内の呼び名・内輪の略語・「例の」「いつもの」など、作者の事情を知らないと指すものが定まらない語なら該当。一首の中で何か分かるものや、広く知られた固有名は非該当。B4（意味は分かるが具体物がない）とは別で、こちらは具体的だが読者には指すものが分からない語。",
+      "positive": [
+        "「ポチの代わりに」（犬だと分かる手がかりがない）",
+        "「例の店で」"
+      ],
+      "negative": [
+        "「祖母の家」「富士山」",
+        "一首の中で説明されている呼び名"
+      ],
+      "requiresParent": false,
+      "source": "加藤（二）：晶子は、分かりにくい語を具体的にし、誤解されやすい語を置き換えた"
     },
     {
       "code": "C1",
@@ -209,14 +277,15 @@
       "severity": "medium",
       "severityNote": null,
       "definition": "文語の助動詞・活用と口語の助動詞・活用が一首の中で混ざっている。",
-      "criteria": "「けり」「なり」「たり」「ぬ」などの文語と、「た」「だ」「ている」などの口語が混在していれば該当。意図的な効果が明らかでも、混在していれば該当とする。",
+      "criteria": "「けり」「なり」「たり」「ぬ」などの文語と、「た」「だ」「ている」などの口語が混在していれば該当。意図的な効果が明らかでも、混在していれば該当とする。文法（助動詞・活用）だけを見る。語彙の調子のずれはC6で扱う。",
       "positive": [
         "「花咲けり」（文語）と「君が笑った」（口語）が一首にある"
       ],
       "negative": [
         "文語なら文語、口語なら口語でそろっている"
       ],
-      "requiresParent": false
+      "requiresParent": false,
+      "source": "加藤（三）"
     },
     {
       "code": "C2",
@@ -233,25 +302,28 @@
       "negative": [
         "「思ひ」「言ふ」のように旧仮名でそろっている"
       ],
-      "requiresParent": false
+      "requiresParent": false,
+      "source": "加藤（三）：寛・晶子も仮名遣いを直した"
     },
     {
       "code": "C3",
-      "name": "「の」の連続・同じ助詞の反復",
+      "name": "同じ助詞・句末の音の反復",
       "category": "C",
       "phase": "sync",
       "severity": "low",
       "severityNote": null,
-      "definition": "格助詞「の」が短い間に三つ以上続く、または同じ助詞が一首に何度も出る。",
-      "criteria": "「の」が間に三語以内で三つ以上続けば該当。「の」以外の同じ格助詞・係助詞が一首に三回以上出ても該当。",
+      "definition": "格助詞「の」が短い間に三つ以上続く、同じ助詞が一首に何度も出る、または句末が同じ音で終わる句が多い。",
+      "criteria": "「の」が間に三語以内で三つ以上続けば該当。「の」以外の同じ格助詞・係助詞が一首に三回以上出ても該当。句末（読みの最後の音）が同じ句が三つ以上あっても該当。",
       "positive": [
         "「夕暮れの駅のホームの」のように「の」が三つ続く",
-        "「に」が一首に三回出る"
+        "「に」が一首に三回出る",
+        "三つの句が「〜て」で終わる"
       ],
       "negative": [
         "「の」は二つまでで、助詞の使い方が散らばっている"
       ],
-      "requiresParent": false
+      "requiresParent": false,
+      "source": "早田：句尾どうしは同じ音が避けられる"
     },
     {
       "code": "C4",
@@ -268,24 +340,45 @@
       "negative": [
         "回想の「た」と今の「る」が、時の移りとして読める"
       ],
-      "requiresParent": false
+      "requiresParent": false,
+      "source": "短歌の入門書でよく挙げられる観点"
     },
     {
       "code": "C5",
-      "name": "不要な一人称主語",
+      "name": "作中主体の説明（一人称・認識動詞）",
       "category": "C",
       "phase": "sync",
       "severity": "low",
       "severityNote": null,
-      "definition": "「私」「僕」「われ」など一人称の主語を書いている。",
-      "criteria": "一人称の代名詞が本文にあれば指摘する（必要かどうかは作者が決める）。",
+      "definition": "「私」「僕」「われ」など一人称の主語や、「見る」「思う」「気づく」「感じる」など作中主体の認識を説明する動詞を書いている。",
+      "criteria": "一人称の代名詞、または認識動詞が本文にあれば指摘する（必要かどうかは作者が決める）。見ている・思っている説明を省くと、対象が前に出ることがある。",
       "positive": [
-        "「私は悲しく」の「私」"
+        "「私は悲しく」の「私」",
+        "「夕焼けを見る」の「見る」"
       ],
       "negative": [
-        "主語を書かず、場面から作中主体が分かる"
+        "主語や認識の説明を書かず、対象そのものを描いている"
       ],
-      "requiresParent": false
+      "requiresParent": false,
+      "source": "加藤（二）：見ている説明は省き、対象を前に出す"
+    },
+    {
+      "code": "C6",
+      "name": "文体に合わない語",
+      "category": "C",
+      "phase": "async",
+      "severity": "low",
+      "severityNote": null,
+      "definition": "一首の文体に対して、古風すぎる語・大仰な語が浮いている。",
+      "criteria": "推定した文体（口語／文語）と語の調子がずれ、実感から離れた借り物の言葉になっていれば該当。文法（助動詞・活用）の混在はC1で扱う。現代の物の名前は文体の混在とみなさない。",
+      "positive": [
+        "口語の歌の「麗しき君」「嗚呼」「黄昏の刻」"
+      ],
+      "negative": [
+        "文語の歌の「コンビニの灯」"
+      ],
+      "requiresParent": false,
+      "source": "加藤（二）（三）：晶子は古臭く大仰な語を避け、寛・晶子は歌に馴染まない語を替えた"
     },
     {
       "code": "D1",
@@ -302,7 +395,8 @@
       "negative": [
         "出来事を並べるだけで、つながりは読み手に任せている"
       ],
-      "requiresParent": false
+      "requiresParent": false,
+      "source": "加藤（二）：散文的な言い回しを直した"
     },
     {
       "code": "D2",
@@ -319,7 +413,8 @@
       "negative": [
         "結句も描写で終わっている"
       ],
-      "requiresParent": false
+      "requiresParent": false,
+      "source": "短歌の入門書でよく挙げられる観点"
     },
     {
       "code": "D3",
@@ -336,24 +431,8 @@
       "negative": [
         "素材が二つか三つに絞られている"
       ],
-      "requiresParent": false
-    },
-    {
-      "code": "D4",
-      "name": "取り合わせが近すぎる",
-      "category": "D",
-      "phase": "async",
-      "severity": "low",
-      "severityNote": null,
-      "definition": "組み合わせた二つの素材が近すぎて、互いに響き合う距離がない。",
-      "criteria": "「桜と春」「雪と冬」のように、一方からもう一方が自然に連想される組み合わせであれば該当。該当箇所は後に出る方の語で示す。",
-      "positive": [
-        "「桜」と「春の日」、「雪」と「冬の朝」"
-      ],
-      "negative": [
-        "「信号の青」と「白い息」のように、離れた素材が響き合う"
-      ],
-      "requiresParent": false
+      "requiresParent": false,
+      "source": "加藤（二）：効果の大きい句を残す"
     },
     {
       "code": "D5",
@@ -370,7 +449,8 @@
       "negative": [
         "場面や時間の移り変わりに手がかりがある"
       ],
-      "requiresParent": false
+      "requiresParent": false,
+      "source": "短歌の入門書でよく挙げられる観点"
     },
     {
       "code": "D6",
@@ -387,7 +467,8 @@
       "negative": [
         "人の動作を与えず、物の様子をそのまま描いている"
       ],
-      "requiresParent": false
+      "requiresParent": false,
+      "source": "加藤（一）"
     },
     {
       "code": "E1",
@@ -404,7 +485,8 @@
       "negative": [
         "具体的な物を、別の具体的な物に置き換えた"
       ],
-      "requiresParent": true
+      "requiresParent": true,
+      "source": "短歌の入門書でよく挙げられる観点"
     },
     {
       "code": "E2",
@@ -421,7 +503,8 @@
       "negative": [
         "説明の語を減らした、または同じ数のまま"
       ],
-      "requiresParent": true
+      "requiresParent": true,
+      "source": "短歌の入門書でよく挙げられる観点"
     },
     {
       "code": "E3",
@@ -438,7 +521,8 @@
       "negative": [
         "戻したのではなく、新しい表現にした"
       ],
-      "requiresParent": true
+      "requiresParent": true,
+      "source": "短歌の入門書でよく挙げられる観点"
     },
     {
       "code": "E4",
@@ -455,7 +539,8 @@
       "negative": [
         "初稿の中心の場面や発見が、形を変えて残っている"
       ],
-      "requiresParent": true
+      "requiresParent": true,
+      "source": "加藤（一）（三）：作者の意図が上書きされる危険"
     },
     {
       "code": "E5",
@@ -465,14 +550,15 @@
       "severity": "medium",
       "severityNote": null,
       "definition": "字余り・字足らずを直すために、表現が弱くなった。",
-      "criteria": "ルールの結果（A1の変化）として音数が定型に近づいた句について、親の版の表現より具体性や強さが落ちていれば該当。",
+      "criteria": "ルールの結果（A1・A5・A6の変化）として音数が定型に近づいた句について、親の版の表現より具体性や強さが落ちていれば該当。",
       "positive": [
         "字余りを直すために「ひとり寂しく」を「寂しく」に縮め、意味が薄くなった"
       ],
       "negative": [
         "音数を整えつつ、表現の具体性も保っている"
       ],
-      "requiresParent": true
+      "requiresParent": true,
+      "source": "加藤（一）"
     }
   ]
 }

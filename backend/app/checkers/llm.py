@@ -126,15 +126,17 @@ def build_user_prompt(ctx: CheckContext) -> str:
     if ctx.parent is not None:
         lines += ["", "# 親の版", f"本文: {ctx.parent.bodyNormalized}", "## 前回の指摘"]
         lines += _findings_lines(ctx.previous_findings)
-        a1_now = {f.segmentNo: f for f in ctx.rule_results if f.code == "A1"}
-        a1_before = {f.segmentNo: f for f in ctx.parent_rule_results if f.code == "A1"}
+        # 音数の変化（A1 字足らず・A5/A6 字余り。切り替え前の版の A1 字余りも含む）
+        mora_codes = ("A1", "A5", "A6")
+        a1_now = {f.segmentNo: f for f in ctx.rule_results if f.code in mora_codes}
+        a1_before = {f.segmentNo: f for f in ctx.parent_rule_results if f.code in mora_codes}
         changes = []
         for no in sorted({*a1_now, *a1_before} - {None}):
             if no in a1_before and no not in a1_now:
                 changes.append(f"- {seg_label(no)}: 親の版の音数のずれが今回は解消（{a1_before[no].message}）")
             elif no in a1_now and no not in a1_before:
                 changes.append(f"- {seg_label(no)}: 今回、音数のずれが新たに発生（{a1_now[no].message}）")
-        lines += ["## A1（音数）の変化"] + (changes or ["- なし"])
+        lines += ["## A1・A5・A6（音数）の変化"] + (changes or ["- なし"])
     if ctx.first is not None and ctx.first.id != rev.id and (ctx.parent is None or ctx.first.id != ctx.parent.id):
         lines += ["", "# 初稿", f"本文: {ctx.first.bodyNormalized}"]
     elif ctx.first is not None and ctx.parent is not None and ctx.first.id == ctx.parent.id:

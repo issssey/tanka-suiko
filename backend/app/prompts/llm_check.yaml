@@ -1,5 +1,5 @@
 # 非同期チェック（LLM）のプロンプト。promptVersion を変えたら checkRuns で結果を比較できる。
-version: "llm-check-2026-11-07.1"
+version: "llm-check-2026-11-09.1"
 
 system: |
   あなたは短歌の推敲を手伝うチェッカーです。作者が保存した一首について、
