@@ -3,8 +3,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { checkPublications, createPublication, deletePublication, updatePublication } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { useDestinations, usePublication, useRevision, useRevisions, useSequences, useTankas } from "../lib/data";
-import { duplicateLine, publicationSummary, sequenceTitle, todayISO } from "../lib/publishing";
+import { useDestinations, usePublication, usePublications, useRevision, useRevisions, useSequences, useTankaPublications, useTankas } from "../lib/data";
+import { duplicateLine, formatDay, publicationSummary, sequenceDuplicateLine, sequenceTitle, todayISO } from "../lib/publishing";
 import type { Publication } from "../lib/types";
 import { TankaPickerSheet, WarnIcon } from "./library";
 import { ConfirmDialog, Loading } from "./ui";
@@ -20,6 +20,7 @@ export function PublishForm({ pc }: { pc?: boolean }) {
   const { data: tankas } = useTankas(user?.uid);
   const { data: sequences } = useSequences(user?.uid);
   const { data: destinations } = useDestinations(user?.uid);
+  const { data: allPubs } = usePublications(user?.uid);
   const { data: existing, loading: loadingExisting } = usePublication(publicationId);
 
   const [mode, setMode] = useState<Mode>(params.get("s") ? "sequence" : "tanka");
@@ -142,14 +143,26 @@ export function PublishForm({ pc }: { pc?: boolean }) {
         <p className="hint">まだ連作がありません。連作の画面で作れます。</p>
       ) : (
         <ul className="choice-list" aria-label="連作">
-          {sequences.map((s) => (
-            <li key={s.id}>
-              <button type="button" aria-pressed={s.id === sequenceId} disabled={s.items.length === 0} onClick={() => setSequenceId(s.id)}>
-                <span style={{ fontFamily: "var(--serif)", fontSize: 16, fontWeight: 600 }}>{sequenceTitle(s)}</span>
-                <span className="small muted">{s.items.length}首{s.items.length === 0 && " · 歌が入っていません"}</span>
-              </button>
-            </li>
-          ))}
+          {sequences.map((s) => {
+            // 選ぶ時点で、出したことがあるかを見せる（連作として出したか、中に出した歌があるか）
+            const published = allPubs.some((p) => p.sequenceId === s.id);
+            const publishedSongs = s.items.filter((i) => (tankas.find((t) => t.id === i.tankaId)?.publishedCount ?? 0) > 0).length;
+            return (
+              <li key={s.id}>
+                <button type="button" aria-pressed={s.id === sequenceId} disabled={s.items.length === 0} onClick={() => setSequenceId(s.id)}>
+                  <span style={{ fontFamily: "var(--serif)", fontSize: 16, fontWeight: 600 }}>{sequenceTitle(s)}</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <span className="small muted">{s.items.length}首{s.items.length === 0 && " · 歌が入っていません"}</span>
+                    {published ? (
+                      <span className="chip outline-accent">発表済み</span>
+                    ) : publishedSongs > 0 ? (
+                      <span className="chip outline-accent">出した歌 {publishedSongs}首</span>
+                    ) : null}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </fieldset>
@@ -161,7 +174,7 @@ export function PublishForm({ pc }: { pc?: boolean }) {
       <span style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <span className="title">{mode === "tanka" ? "この歌はすでに出しています" : "すでに出した歌が含まれています"}</span>
         <span className="text">
-          {dupes.slice(0, 3).map((p) => duplicateLine(p, mode === "tanka" ? tankaId : null)).join("")}
+          {dupes.slice(0, 3).map((p) => (mode === "sequence" && seq ? sequenceDuplicateLine(p, seq) : duplicateLine(p, tankaId))).join("")}
           {dupes.length > 3 && `ほか${dupes.length - 3}件。`}
           未発表の作品だけを受け付ける出し先では、二重投稿になることがあります。記録はこのままできます。
         </span>
@@ -198,6 +211,7 @@ export function PublishForm({ pc }: { pc?: boolean }) {
     <>
       {picking === "tanka" && (
         <TankaPickerSheet
+          purpose="publish"
           exclude={[]}
           onPick={(id) => {
             setTankaId(id);
@@ -266,7 +280,11 @@ export function PublishForm({ pc }: { pc?: boolean }) {
 }
 
 function RevisionPicker({ tankaId, current, onPick, onClose }: { tankaId: string; current: string | null; onPick: (id: string) => void; onClose: () => void }) {
+  const { user } = useAuth();
   const { data: revisions } = useRevisions(tankaId);
+  const { data: pubs } = useTankaPublications(user?.uid, tankaId);
+  // 稿ごとに、出した記録（いつ・どこに）
+  const sent = (revisionId: string) => pubs.filter((p) => p.items.some((i) => i.tankaId === tankaId && i.revisionId === revisionId));
   return (
     <div className="dialog-layer">
       <button type="button" className="dialog-backdrop" aria-label="閉じる" onClick={onClose} />
@@ -279,6 +297,11 @@ function RevisionPicker({ tankaId, current, onPick, onClose }: { tankaId: string
               <button type="button" aria-pressed={r.id === current} onClick={() => onPick(r.id)}>
                 <span className="poem">{r.bodyNormalized}</span>
                 <span className="small muted">第{r.revisionNo}稿</span>
+                {sent(r.id).map((p) => (
+                  <span key={p.id} className="small" style={{ color: "var(--accent)", fontWeight: 500 }}>
+                    {formatDay(p.submittedOn, "short")} {p.destination}に出した稿
+                  </span>
+                ))}
               </button>
             </li>
           ))}

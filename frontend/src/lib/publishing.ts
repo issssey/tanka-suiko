@@ -49,6 +49,23 @@ export function sequenceTitle(seq: Pick<Sequence, "title">): string {
   return seq.title.trim() || "無題の連作";
 }
 
+/** 本文の冒頭（警告で、どの歌かを示す）。 */
+export function snippet(body: string, length = 8): string {
+  return body.length > length ? `${body.slice(0, length)}…` : body;
+}
+
+/**
+ * 連作を出すときの二重投稿の警告の文（1件ごと）。
+ * 同じ連作を前に出していれば連作として、そうでなければ当たった歌の冒頭を示す。
+ */
+export function sequenceDuplicateLine(pub: Publication, seq: Pick<Sequence, "id" | "items">): string {
+  const when = `${formatDay(pub.submittedOn, "short")}に「${pub.destination}」に出しています。`;
+  if (pub.sequenceId === seq.id) return `この連作は${when}`;
+  const ids = new Set(seq.items.map((i) => i.tankaId));
+  const hits = pub.items.filter((i) => ids.has(i.tankaId)).map((i) => `「${snippet(i.body)}」`);
+  return `${hits.join("")}は${when}`;
+}
+
 /** 二重投稿の警告の文（1件ごと）。 */
 export function duplicateLine(pub: Publication, tankaId: string | null): string {
   const no = tankaId ? publishedRevisionNo(pub, tankaId) : undefined;

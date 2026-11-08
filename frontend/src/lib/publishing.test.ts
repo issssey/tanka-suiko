@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { duplicateLine, formatDay, kanjiNumber, publicationSummary, todayISO } from "./publishing";
+import { duplicateLine, formatDay, kanjiNumber, publicationSummary, sequenceDuplicateLine, todayISO } from "./publishing";
 import type { Publication } from "./types";
 
 const pub = (over: Partial<Publication> = {}): Publication => ({
@@ -24,5 +24,11 @@ describe("publishing", () => {
     expect(publicationSummary(pub())).toBe("1首 · 第3稿");
     expect(publicationSummary(pub({ sequenceId: "s1", sequenceTitle: "冬のはじまり" }))).toBe("連作「冬のはじまり」1首");
     expect(duplicateLine(pub(), "t1")).toMatch(/「みなと新聞 歌壇」に第3稿を出しています。$/);
+  });
+  it("連作を出すときの警告は、どの歌かを示す", () => {
+    const seq = { id: "s1", items: [{ tankaId: "t1", revisionId: "r4" }, { tankaId: "t2", revisionId: "r1" }] };
+    const single = pub({ items: [{ tankaId: "t1", revisionId: "r3", revisionNo: 3, body: "夕暮れの駅のホームで寂しくて" }] });
+    expect(sequenceDuplicateLine(single, seq)).toMatch(/^「夕暮れの駅のホー…」は.*に「みなと新聞 歌壇」に出しています。$/);
+    expect(sequenceDuplicateLine(pub({ sequenceId: "s1", sequenceTitle: "駅の灯" }), seq)).toMatch(/^この連作は/);
   });
 });

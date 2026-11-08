@@ -92,19 +92,37 @@ export function Sheet({ title, children, onClose }: { title: string; children: R
 }
 
 /** 連作に加える歌を選ぶ。入るのはその時点のいまの稿。 */
-export function TankaPickerSheet({ exclude, onPick, onClose }: { exclude: string[]; onPick: (tankaId: string) => void; onClose: () => void }) {
+export function TankaPickerSheet({
+  exclude,
+  onPick,
+  onClose,
+  purpose = "sequence",
+}: {
+  exclude: string[];
+  onPick: (tankaId: string) => void;
+  onClose: () => void;
+  /** sequence：連作に歌を加える／publish：発表を記録する歌を選ぶ */
+  purpose?: "sequence" | "publish";
+}) {
   const { user } = useAuth();
   const { data: tankas } = useTankas(user?.uid);
   const list = tankas.filter((t) => t.currentRevisionId);
   return (
-    <Sheet title="歌を加える" onClose={onClose}>
-      <p className="hint">いまの稿が入ります。後で推敲しても、連作の中身は変わりません。</p>
+    <Sheet title={purpose === "sequence" ? "歌を加える" : "出した歌を選ぶ"} onClose={onClose}>
+      <p className="hint">
+        {purpose === "sequence"
+          ? "いまの稿が入ります。後で推敲しても、連作の中身は変わりません。"
+          : "いまの稿を選びます。出したのが別の稿なら、選んだあとに変えられます。"}
+      </p>
       <ul className="choice-list">
         {list.map((t) => (
           <li key={t.id}>
             <button type="button" disabled={exclude.includes(t.id)} onClick={() => onPick(t.id)}>
               <span className="poem">{t.latestBody}</span>
-              <span className="small muted">第{t.latestRevisionNo}稿{exclude.includes(t.id) && " · この連作に入っています"}</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                <span className="small muted">第{t.latestRevisionNo}稿{exclude.includes(t.id) && " · この連作に入っています"}</span>
+                {(t.publishedCount ?? 0) > 0 && <span className="chip outline-accent">発表済み</span>}
+              </span>
             </button>
           </li>
         ))}
