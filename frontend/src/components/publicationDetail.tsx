@@ -1,4 +1,4 @@
-// 発表記録の詳細（スマホ・PC）。出した時点の稿と本文の写しを出す。直す・削除はここから
+// 発表記録の詳細（スマホ）。PC版は発表記録の画面の右側で、その場で直す（pages/pc/PcPublications.tsx）。出した時点の稿と本文の写しを出す。直す・削除はここから
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { deletePublication } from "../lib/api";
@@ -7,7 +7,7 @@ import { formatDay, kanjiNumber, publicationSummary } from "../lib/publishing";
 import { useGoneTankas } from "../pages/Publications";
 import { ConfirmDialog, Loading, TopBar } from "./ui";
 
-export function PublicationDetail({ pc }: { pc?: boolean }) {
+export function PublicationDetail() {
   const { publicationId = "" } = useParams();
   const { data: pub, loading } = usePublication(publicationId);
   const isGone = useGoneTankas();
@@ -67,7 +67,7 @@ export function PublicationDetail({ pc }: { pc?: boolean }) {
       </section>
       {error && <p className="error" style={{ margin: 0 }}>{error}</p>}
       <div className="pub-detail-actions">
-        <Link to={`/publications/${pub.id}/edit`} className={pc ? "pc-btn" : "btn-secondary"}>記録を直す</Link>
+        <Link to={`/publications/${pub.id}/edit`} className="btn-secondary">記録を直す</Link>
         <button type="button" className="text-btn danger" onClick={() => setConfirmDelete(true)}>この記録を削除</button>
       </div>
       <p className="hint">直せるのは出し先・出した日・メモです。出したものを間違えたときは、記録を削除して記録し直してください。</p>
@@ -79,15 +79,6 @@ export function PublicationDetail({ pc }: { pc?: boolean }) {
     </>
   );
 
-  if (pc) {
-    return (
-      <main className="pc-home pub-detail" style={{ maxWidth: 880, gap: 20 }}>
-        <Link to="/publications" className="small" style={{ textDecoration: "none" }}>‹ 発表記録に戻る</Link>
-        <h1 style={{ margin: 0, fontSize: 26 }}>{pub.destination}</h1>
-        {body}
-      </main>
-    );
-  }
   return (
     <>
       <TopBar back="/publications" backLabel="発表記録に戻る" title={pub.destination} sub={formatDay(pub.submittedOn)} />

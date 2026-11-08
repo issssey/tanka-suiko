@@ -1,6 +1,6 @@
 // PC版の共通部品：上部ヘッダー、左の短歌リスト、縦書きの本文
-import type { ReactNode } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { useState, type ReactNode } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { useTankas } from "../lib/data";
 import type { Finding, Segment, Severity } from "../lib/types";
@@ -14,21 +14,52 @@ export function ListIcon() {
   );
 }
 
+/** いまの画面がどの欄か（ヘッダーで下線を引く）。 */
+function sectionOf(pathname: string): "tankas" | "sequences" | "publications" | "settings" {
+  if (pathname.startsWith("/sequences")) return "sequences";
+  if (pathname.startsWith("/publications") || pathname.startsWith("/publish")) return "publications";
+  if (pathname.startsWith("/settings") || pathname.startsWith("/patterns")) return "settings";
+  return "tankas";
+}
+
+/** PC版のヘッダー。短歌・連作・発表記録・設定を切り替える。 */
 export function PcHeader() {
   const { user } = useAuth();
+  const { pathname } = useLocation();
   const initial = (user?.displayName || user?.email || "歌").slice(0, 1);
+  const current = sectionOf(pathname);
+  const links = [
+    { key: "tankas", to: "/", label: "短歌" },
+    { key: "sequences", to: "/sequences", label: "連作" },
+    { key: "publications", to: "/publications", label: "発表記録" },
+    { key: "settings", to: "/settings", label: "設定" },
+  ] as const;
   return (
     <header className="pc-header">
       <Link to="/" className="pc-logo">推敲帖</Link>
       <nav aria-label="アカウント" className="pc-nav">
-        <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : undefined)}>
-          <ListIcon />
-          短歌一覧
-        </NavLink>
-        <NavLink to="/settings" className={({ isActive }) => (isActive ? "active" : undefined)}>設定</NavLink>
+        {links.map((l) => (
+          <Link key={l.key} to={l.to} aria-current={current === l.key ? "page" : undefined} className={l.key === "settings" ? "settings" : undefined}>
+            {l.label}
+          </Link>
+        ))}
         <span aria-hidden="true" className="pc-avatar">{initial}</span>
       </nav>
     </header>
+  );
+}
+
+/** 左の列の検索欄。 */
+export function SideSearch({ label, placeholder, value, onChange }: { label: string; placeholder: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <label className="pc-side-search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5F5B53" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7" />
+        <path d="M20 20l-4-4" />
+      </svg>
+      <span className="sr-only">{label}</span>
+      <input type="search" placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
+    </label>
   );
 }
 
@@ -52,16 +83,24 @@ export function PcShell({ activeTankaId, children, aside, asideLabel }: { active
 
 function PcSidebar({ activeTankaId }: { activeTankaId?: string }) {
   const { user } = useAuth();
-  const { data: tankas } = useTankas(user?.uid);
+  const { data: tankas, loading } = useTankas(user?.uid);
+  const [q, setQ] = useState("");
+  const list = tankas.filter((t) => t.currentRevisionId);
+  const shown = q.trim() ? list.filter((t) => (t.latestBody ?? "").includes(q.trim())) : list;
   return (
     <aside className="pc-sidebar">
       <Link to="/new" className="btn-primary pc-new">
         <PlusIcon />
         新しい短歌
       </Link>
+      {!loading && list.length === 0 ? (
+        <p className="small muted" style={{ margin: 0, padding: 12, fontSize: 13, lineHeight: 1.7 }}>書いた短歌はここに並びます。</p>
+      ) : (
+        <SideSearch label="短歌を検索" placeholder="本文で探す" value={q} onChange={setQ} />
+      )}
+      {q.trim() && shown.length === 0 && <p className="small muted" style={{ margin: 0, padding: "0 12px" }}>「{q}」を含む短歌はありません。</p>}
       <nav aria-label="短歌一覧" className="pc-tanka-list">
-        {tankas
-          .filter((t) => t.currentRevisionId)
+        {shown
           .map((t) => (
             <Link
               key={t.id}

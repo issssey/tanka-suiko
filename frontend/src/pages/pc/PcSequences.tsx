@@ -1,8 +1,8 @@
 // PC版の連作。左に連作の一覧、右に選んだ連作の題と歌の並び
 import { useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
-import { PcHeader } from "../../components/pc";
-import { LibraryTabs, SaveStatus, SequenceItems, TankaPickerSheet } from "../../components/library";
+import { PcHeader, SideSearch } from "../../components/pc";
+import { SaveStatus, SequenceItems, TankaPickerSheet } from "../../components/library";
 import { ConfirmDialog, formatDate, Loading, PlusIcon } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { usePublications, useSequence, useSequences, useTankas } from "../../lib/data";
@@ -17,6 +17,8 @@ export default function PcSequences() {
   const { data: pubs } = usePublications(user?.uid);
   const tankasById = useMemo(() => new Map(tankas.map((t) => [t.id, t])), [tankas]);
   const { create, busy, error } = useCreateSequence();
+  const [q, setQ] = useState("");
+  const shown = q.trim() ? sequences.filter((s) => sequenceTitle(s).includes(q.trim())) : sequences;
 
   if (!sequenceId && !loading && sequences.length > 0) return <Navigate to={`/sequences/${sequences[0].id}`} replace />;
 
@@ -30,8 +32,10 @@ export default function PcSequences() {
             新しい連作
           </button>
           {error && <p className="error" style={{ margin: 0 }}>{error}</p>}
+          {sequences.length > 0 && <SideSearch label="連作を検索" placeholder="題で探す" value={q} onChange={setQ} />}
+          {q.trim() && shown.length === 0 && <p className="small muted" style={{ margin: 0, padding: "0 12px" }}>「{q}」を題に含む連作はありません。</p>}
           <nav aria-label="連作一覧" className="pc-seq-list">
-            {sequences.map((s) => {
+            {shown.map((s) => {
               const stale = staleCount(s, tankasById);
               const published = pubs.some((p) => p.sequenceId === s.id);
               return (
@@ -48,7 +52,6 @@ export default function PcSequences() {
           </nav>
         </aside>
         <main className="pc-main pc-seq" style={{ gap: 20 }}>
-          <LibraryTabs active="sequences" pc />
           {loading ? (
             <Loading />
           ) : sequenceId ? (

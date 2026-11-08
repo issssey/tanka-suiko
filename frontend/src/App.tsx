@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
 import type { ReactNode } from "react";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { useWide } from "./lib/responsive";
@@ -26,10 +26,13 @@ import SequencePage from "./pages/Sequence";
 import PublicationsPage from "./pages/Publications";
 import PublishPage from "./pages/Publish";
 import PublicationPage from "./pages/Publication";
-import PcPublication from "./pages/pc/PcPublication";
 import PcSequences from "./pages/pc/PcSequences";
-import PcPublications from "./pages/pc/PcPublications";
-import PcPublish from "./pages/pc/PcPublish";
+import PcPublications, { PcPublication, PcPublish } from "./pages/pc/PcPublications";
+
+function EditToDetail() {
+  const { publicationId = "" } = useParams();
+  return <Navigate to={`/publications/${publicationId}`} replace />;
+}
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -62,7 +65,8 @@ function Screens() {
         <Route path="/publications" element={auth(pick(<PublicationsPage />, <PcPublications />))} />
         <Route path="/publications/:publicationId" element={auth(pick(<PublicationPage />, <PcPublication />))} />
         <Route path="/publish" element={auth(pick(<PublishPage />, <PcPublish />))} />
-        <Route path="/publications/:publicationId/edit" element={auth(pick(<PublishPage key="edit" />, <PcPublish key="edit" />))} />
+        {/* PC版は詳細の画面でその場で直すので、直す画面は詳細に移す */}
+        <Route path="/publications/:publicationId/edit" element={auth(pick(<PublishPage key="edit" />, <EditToDetail />))} />
         <Route path="/settings" element={auth(pick(<SettingsPage />, <PcSettings />))} />
         <Route path="/patterns" element={pick(<PatternsPage />, <RequireAuth><PcSettings /></RequireAuth>)} />
         <Route path="*" element={<Navigate to="/" replace />} />
