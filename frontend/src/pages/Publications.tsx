@@ -58,7 +58,6 @@ function PublicationCard({ pub, gone }: { pub: Publication; gone: boolean }) {
     <Link to={`/publications/${pub.id}`} className="pub-card pub-card-link">
       <div className="head">
         <span className="dest">{pub.destination}</span>
-        <span aria-hidden="true" style={{ marginLeft: "auto", color: "var(--placeholder)" }}>›</span>
       </div>
       <div className="meta">
         <span>{formatDay(pub.submittedOn)}</span>
