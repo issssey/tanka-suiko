@@ -49,9 +49,9 @@ export default function HistoryPage() {
                 <div className="head">
                   <span style={{ fontSize: 15, fontWeight: 700 }}>
                     第{r.revisionNo}稿
-                    {r.id === tanka?.currentRevisionId && <span className="chip accent" style={{ marginLeft: 8 }}>いまの稿</span>}
-                    {!parent && <span className="chip neutral" style={{ marginLeft: 8 }}>初稿</span>}
-                    {r.restoredFromRevisionId && parent && <span className="chip neutral" style={{ marginLeft: 8 }}>第{parent.revisionNo}稿に戻した</span>}
+                    {r.id === tanka?.currentRevisionId && <span className="chip outline" style={{ marginLeft: 8 }}>いまの稿</span>}
+                    {!parent && <span className="chip outline" style={{ marginLeft: 8 }}>初稿</span>}
+                    {r.restoredFromRevisionId && parent && <span className="chip outline" style={{ marginLeft: 8 }}>第{parent.revisionNo}稿に戻した</span>}
                   </span>
                   <span className="small muted">{formatDate(r.createdAt)}</span>
                 </div>
@@ -61,12 +61,10 @@ export default function HistoryPage() {
                   ))}
                 </p>
                 {r.note && <span className="small muted">メモ：{r.note}</span>}
-                <div className="chips">
-                  {parent && <span className="chip accent">解消 {s.counts.resolved}</span>}
-                  {parent && <span className="chip neutral">継続 {s.counts.continued}</span>}
-                  <span className="chip high">新規 {s.counts.new}</span>
-                  {s.asyncPending && <span className="chip neutral">判定中</span>}
-                </div>
+                <span className="card-meta">
+                  {parent && `解消 ${s.counts.resolved} · 継続 ${s.counts.continued} · `}新規 {s.counts.new}
+                  {s.asyncPending && " · 判定中"}
+                </span>
               </Link>
             </li>
           );

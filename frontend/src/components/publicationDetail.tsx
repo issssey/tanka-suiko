@@ -57,7 +57,7 @@ export function PublicationDetail() {
                   <p className={gone ? "poem gone" : "poem"}>{it.body}</p>
                   <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     <span className="small muted">第{it.revisionNo}稿</span>
-                    {gone && <span className="chip neutral">削除した歌</span>}
+                    {gone && <span className="chip outline">削除した歌</span>}
                   </span>
                 </div>
               </li>

@@ -383,8 +383,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 20px; height: 20px;
 .lib-tabs a[aria-current="page"] { background: var(--surface); font-weight: 700; color: var(--text); }
 .lib-tabs.lib-tabs-pc { margin: 0; align-self: flex-start; }
 .lib-tabs.lib-tabs-pc a { flex: none; padding: 0 22px; }
-.chip.outline { background: transparent; border: 1px solid var(--neutral-line); color: var(--muted); padding: 2px 8px; }
-.chip.outline-accent { background: transparent; border: 1px solid var(--accent); color: var(--accent); padding: 2px 8px; }
+.chip.outline, .chip.outline-accent { background: transparent; border: 1px solid var(--placeholder); color: var(--text-2); padding: 2px 8px; }
 .chip.stale { background: var(--high-bg); color: var(--high); }
 
 .seq-title-field { display: flex; flex-direction: column; gap: 6px; padding: 8px 20px 16px; }
@@ -453,7 +452,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 20px; height: 20px;
 .pc-seq-list { display: flex; flex-direction: column; gap: 4px; }
 .pc-seq-list a { display: flex; flex-direction: column; gap: 6px; padding: 14px; border-radius: 10px; text-decoration: none; color: var(--text); }
 .pc-seq-list a[aria-current="page"] { background: var(--accent-bg); }
-.pc-seq-list .t { font-family: var(--serif); font-size: 17px; font-weight: 600; }
+.pc-seq-list .t { font-size: 15px; font-weight: 700; }
 .pc-seq .seq-items { padding: 0; max-width: 880px; }
 .pc-seq .seq-item { padding: 16px 18px; gap: 14px; }
 .pc-seq .seq-item .poem { font-size: 18px; }
@@ -510,14 +509,19 @@ html { touch-action: manipulation; }
 .pc-publish .form-input { height: 44px; }
 
 .pc-pub-list { display: flex; flex-direction: column; gap: 4px; }
-.pc-pub-list a { display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 10px; text-decoration: none; color: var(--text); }
+.pc-pub-list a { display: flex; flex-direction: column; gap: 6px; padding: 14px; border-radius: 10px; text-decoration: none; color: var(--text); }
 .pc-pub-list a:hover { background: var(--low-bg); color: var(--text); }
 .pc-pub-list a[aria-current="page"] { background: var(--accent-bg); }
 .pc-pub-list .head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.pc-pub-list .dest { font-size: 14px; font-weight: 700; }
+.pc-pub-list .dest { font-size: 15px; font-weight: 700; }
 .pc-pub-list .date { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
-.pc-pub-list .poem { font-family: var(--serif); font-size: 14px; line-height: 1.7; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pc-pub-list .poem { font-family: var(--serif); font-size: 14px; line-height: 1.7; color: var(--text-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .pc-pub-list .poem.gone { color: var(--muted); }
 .btn-primary.pc-new[aria-current="page"] { background: var(--accent-hover); }
 .pub-edit { display: flex; flex-direction: column; gap: 14px; padding: 20px; }
 .pub-edit .form-input { height: 44px; }
+
+.card-meta { font-size: 12px; color: var(--muted); }
+.poem-clamp { margin: 0; font-family: var(--serif); font-size: 16px; line-height: 1.85; color: var(--text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.tanka-card.compact { gap: 8px; }
+.tanka-card .title { font-size: 15px; font-weight: 700; }

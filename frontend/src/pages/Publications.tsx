@@ -52,24 +52,18 @@ export function useGoneTankas() {
   return (tankaId: string) => !loading && !ids.has(tankaId);
 }
 
+/** 発表記録のカード。出し先・本文（2行まで）・何をいつ出したか・削除した歌。 */
 function PublicationCard({ pub, gone }: { pub: Publication; gone: boolean }) {
-  const first = pub.items[0];
   return (
-    <Link to={`/publications/${pub.id}`} className="pub-card pub-card-link">
-      <div className="head">
-        <span className="dest">{pub.destination}</span>
-      </div>
-      <div className="meta">
-        <span>{formatDay(pub.submittedOn)}</span>
-        <span aria-hidden="true">·</span>
-        <span>{publicationSummary(pub)}</span>
-        {gone && <span className="chip neutral">削除した歌</span>}
-      </div>
-      <p className={gone ? "poem gone" : "poem"}>
-        {first?.body}
-        {pub.items.length > 1 && <span className="small muted" style={{ fontFamily: "var(--sans)" }}>　ほか{pub.items.length - 1}首</span>}
-      </p>
-      {pub.note && <p className="pub-note">{pub.note}</p>}
+    <Link to={`/publications/${pub.id}`} className="card tanka-card compact">
+      <span className="title">{pub.destination}</span>
+      <p className="poem-clamp" style={gone ? { color: "var(--muted)" } : undefined}>{pub.items[0]?.body}</p>
+      <span className="card-meta">{publicationSummary(pub)} · {formatDay(pub.submittedOn, "short")}</span>
+      {gone && (
+        <div className="chips">
+          <span className="chip outline">削除した歌</span>
+        </div>
+      )}
     </Link>
   );
 }

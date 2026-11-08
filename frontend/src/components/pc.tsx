@@ -4,7 +4,8 @@ import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { useTankas } from "../lib/data";
 import type { Finding, Segment, Severity } from "../lib/types";
-import { PlusIcon } from "./ui";
+import { formatDate, PlusIcon } from "./ui";
+import { PublishedChips } from "./library";
 
 export function ListIcon() {
   return (
@@ -108,7 +109,12 @@ function PcSidebar({ activeTankaId }: { activeTankaId?: string }) {
               aria-current={t.id === activeTankaId ? "page" : undefined}
             >
               <span className="serif pc-tanka-line">{t.latestBody}</span>
-              <span className="small">第{t.latestRevisionNo}稿</span>
+              <span className="small">第{t.latestRevisionNo}稿 · {formatDate(t.updatedAt)}</span>
+              {((t.publishedCount ?? 0) > 0 || (t.sequenceIds?.length ?? 0) > 0) && (
+                <span className="chips">
+                  <PublishedChips tanka={t} />
+                </span>
+              )}
             </Link>
           ))}
       </nav>

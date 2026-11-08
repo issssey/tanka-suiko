@@ -50,7 +50,7 @@ export function PublishedChips({ tanka }: { tanka: Tanka }) {
   return (
     <>
       {(tanka.publishedCount ?? 0) > 0 && <span className="chip outline-accent">発表済み</span>}
-      {seqs > 0 && <span className="chip outline">連作 {seqs}</span>}
+      {seqs > 0 && <span className="chip outline">連作</span>}
     </>
   );
 }
@@ -357,7 +357,8 @@ function SequenceItemRow({
   const label = `${kanjiNumber(no)}首目`;
   const isCurrent = tanka?.currentRevisionId === item.revisionId;
   const stale = tanka?.currentRevisionId && !isCurrent;
-  const revLabel = rev ? `第${rev.revisionNo}稿${isCurrent ? " · いまの稿" : ""}` : "";
+  const revLabel = rev ? `第${rev.revisionNo}稿` : "";
+  const currentChip = isCurrent && <span className="chip outline" style={{ alignSelf: "flex-start" }}>いまの稿</span>;
   return (
     <li className={dragging ? "seq-item dragging" : "seq-item"}>
       <button type="button" className="drag-handle" aria-label={`${label}を並べ替え（上下の矢印キーでも動かせます）`} disabled={disabled} {...handle}>
@@ -367,7 +368,13 @@ function SequenceItemRow({
       <div className="body">
         {!pc && <span className="small muted">{kanjiNumber(no)}{revLabel && ` · ${revLabel}`}</span>}
         <p className="poem">{rev?.bodyNormalized ?? tanka?.latestBody ?? "…"}</p>
-        {pc && revLabel && <span className="small muted">{revLabel}</span>}
+        {!pc && currentChip}
+        {pc && revLabel && (
+          <span className="small muted" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {revLabel}
+            {currentChip}
+          </span>
+        )}
         {stale && (
           <div className="stale-note">
             <span>新しい稿があります（第{tanka?.latestRevisionNo}稿）</span>

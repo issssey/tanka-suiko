@@ -7,7 +7,7 @@ import { ConfirmDialog, formatDate, Loading, PlusIcon } from "../../components/u
 import { deletePublication, updatePublication } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { usePublications, useSequences } from "../../lib/data";
-import { kanjiNumber, publicationSummary } from "../../lib/publishing";
+import { formatDay, kanjiNumber, publicationSummary } from "../../lib/publishing";
 import type { Publication } from "../../lib/types";
 import { useGoneTankas } from "../Publications";
 
@@ -36,15 +36,14 @@ function PcPublicationsLayout({ activeId, publishing, children }: { activeId?: s
               const gone = p.items.length === 1 && isGone(p.items[0].tankaId);
               return (
                 <Link key={p.id} to={`/publications/${p.id}`} aria-current={p.id === activeId ? "page" : undefined}>
-                  <span className="head">
-                    <span className="dest">{p.destination}</span>
-                    <span className="date">{p.submittedOn.slice(5).replace("-", "/")}</span>
-                  </span>
-                  <span className="small muted" style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    {publicationSummary(p)}
-                    {gone && <span className="chip neutral">削除した歌</span>}
-                  </span>
-                  <span className={gone ? "poem gone" : "poem"}>{p.items[0]?.body}</span>
+                  <span className="dest">{p.destination}</span>
+                  <span className="poem">{p.items[0]?.body}</span>
+                  <span className="small muted">{publicationSummary(p)} · {formatDay(p.submittedOn, "short")}</span>
+                  {gone && (
+                    <span className="chips">
+                      <span className="chip outline">削除した歌</span>
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -211,7 +210,7 @@ function PublicationEditor({ pub }: { pub: Publication }) {
                   <p className={gone ? "poem gone" : "poem"}>{it.body}</p>
                   <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     <span className="small muted">第{it.revisionNo}稿</span>
-                    {gone && <span className="chip neutral">削除した歌</span>}
+                    {gone && <span className="chip outline">削除した歌</span>}
                   </span>
                 </div>
               </li>

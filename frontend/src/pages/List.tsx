@@ -1,8 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
-import { useCheckRuns, useFeedback, useTankas } from "../lib/data";
-import { severityCounts, summarize } from "../lib/findings";
-import { loadSettings } from "../lib/settings";
+import { useTankas } from "../lib/data";
 import type { Tanka } from "../lib/types";
 import { formatDate, GearIcon, Loading, PlusIcon } from "../components/ui";
 import { LibraryTabs, PublishedChips } from "../components/library";
@@ -35,27 +33,18 @@ export default function ListPage() {
   );
 }
 
+/** 短歌のカード。本文（2行まで）・稿と日時・発表済み／連作。 */
 function TankaCard({ tanka }: { tanka: Tanka }) {
-  const { data: runs } = useCheckRuns(tanka.id, tanka.currentRevisionId);
-  const { data: feedback } = useFeedback(tanka.id);
-  const s = summarize(runs, feedback, loadSettings());
-  const c = severityCounts(s.visible);
-  const href = `/t/${tanka.id}/r/${tanka.currentRevisionId}`;
+  const seqs = tanka.sequenceIds?.length ?? 0;
   return (
-    <Link to={href} className="card tanka-card">
-      <span className="small muted">
-        第{tanka.latestRevisionNo}稿 · {formatDate(tanka.updatedAt)}
-      </span>
-      <p className="poem-line">{tanka.latestBody}</p>
-      <div className="chips">
-        {c.high > 0 && <span className="chip high">高 {c.high}</span>}
-        {c.medium > 0 && <span className="chip medium">中 {c.medium}</span>}
-        {c.low > 0 && <span className="chip low">低 {c.low}</span>}
-        {s.hidden.length > 0 && <span className="chip neutral">非表示 {s.hidden.length}</span>}
-        {s.counts.resolved > 0 && <span className="chip accent">前稿から {s.counts.resolved}件解消</span>}
-        {s.asyncPending && <span className="chip neutral">意味のチェック中</span>}
-        <PublishedChips tanka={tanka} />
-      </div>
+    <Link to={`/t/${tanka.id}/r/${tanka.currentRevisionId}`} className="card tanka-card">
+      <p className="poem-clamp">{tanka.latestBody}</p>
+      <span className="card-meta">第{tanka.latestRevisionNo}稿 · {formatDate(tanka.updatedAt)}</span>
+      {((tanka.publishedCount ?? 0) > 0 || seqs > 0) && (
+        <div className="chips">
+          <PublishedChips tanka={tanka} />
+        </div>
+      )}
     </Link>
   );
 }

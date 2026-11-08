@@ -5,7 +5,7 @@ import { PcHeader, SideSearch } from "../../components/pc";
 import { SaveStatus, SequenceItems, TankaPickerSheet } from "../../components/library";
 import { ConfirmDialog, formatDate, Loading, PlusIcon } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
-import { usePublications, useSequence, useSequences, useTankas } from "../../lib/data";
+import { usePublications, useRevision, useSequence, useSequences, useTankas } from "../../lib/data";
 import { sequenceTitle, staleCount } from "../../lib/publishing";
 import { useCreateSequence, useSequenceEditor } from "../../lib/sequenceEditor";
 
@@ -41,11 +41,14 @@ export default function PcSequences() {
               return (
                 <Link key={s.id} to={`/sequences/${s.id}`} aria-current={s.id === sequenceId ? "page" : undefined}>
                   <span className="t">{sequenceTitle(s)}</span>
+                  {s.items[0] && <FirstLine tankaId={s.items[0].tankaId} revisionId={s.items[0].revisionId} />}
                   <span className="small muted">{s.items.length}首 · {formatDate(s.updatedAt)}</span>
-                  <span className="chips">
-                    {stale > 0 && <span className="chip stale">新しい稿 {stale}</span>}
-                    {published ? <span className="chip outline-accent">発表済み</span> : <span className="chip neutral">未発表</span>}
-                  </span>
+                  {(stale > 0 || published) && (
+                    <span className="chips">
+                      {stale > 0 && <span className="chip stale">新しい稿あり</span>}
+                      {published && <span className="chip outline">発表済み</span>}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -120,4 +123,10 @@ function PcSequenceEditor({ sequenceId }: { sequenceId: string }) {
       )}
     </>
   );
+}
+
+/** 左の一覧に出す一首目の本文（2行まで）。 */
+function FirstLine({ tankaId, revisionId }: { tankaId: string; revisionId: string }) {
+  const { data: rev } = useRevision(tankaId, revisionId);
+  return <span className="serif pc-tanka-line" style={{ color: "var(--text-2)" }}>{rev?.bodyNormalized ?? ""}</span>;
 }
