@@ -16,7 +16,7 @@ export default function PcAppreciation() {
     <PcShell activeTankaId={tankaId}>
       <div className="pc-titlebar">
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <h1>鑑賞</h1>
+          <h1>読まれ方</h1>
           <span className="meta">第{rev.revisionNo}稿{a?.status === "done" && ` · ${formatDate(a.createdAt)}`}</span>
         </div>
         <Link to={back} className="pc-btn">チェック結果に戻る</Link>

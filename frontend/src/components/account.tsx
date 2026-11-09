@@ -2,7 +2,7 @@
 import { ConfirmDialog } from "./ui";
 
 /** 書き出しで何が入るか（書き出しの確認で伝える）。 */
-export const EXPORT_NOTE = "短歌とすべての稿、チェック結果、「意図的」「誤検出」にした判断、鑑賞、連作、発表記録を、JSONファイル1つにまとめて書き出します。";
+export const EXPORT_NOTE = "短歌とすべての稿、チェック結果、「意図的」「誤検出」にした判断、読まれ方、連作、発表記録を、JSONファイル1つにまとめて書き出します。";
 
 /** 「すべてのデータを書き出す」を押したあとの確認。 */
 export function ExportDialog({ busy, onConfirm, onCancel }: { busy?: boolean; onConfirm: () => void; onCancel: () => void }) {
@@ -17,7 +17,7 @@ export function ExportDialog({ busy, onConfirm, onCancel }: { busy?: boolean; on
 export function DeleteAccountText() {
   return (
     <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8 }}>
-      すべての短歌と稿、チェック結果、「意図的」「誤検出」にした指摘、鑑賞、連作、発表記録、ログイン情報が削除されます。
+      すべての短歌と稿、チェック結果、「意図的」「誤検出」にした指摘、読まれ方、連作、発表記録、ログイン情報が削除されます。
       <strong>削除すると元に戻せません。</strong>必要なら、先に「すべてのデータを書き出す」で保存してください。
     </p>
   );

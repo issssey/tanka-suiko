@@ -25,7 +25,7 @@ export function firstSentence(text: string | null): string {
   return i >= 0 && i < text.length - 1 ? text.slice(0, i + 1) : text;
 }
 
-/** 鑑賞を頼む操作。上限に達したら「今日はもう鑑賞できません」。 */
+/** 読まれ方を見る操作。上限に達したら「今日はもう見られません」。 */
 function useRequest(tankaId: string, revisionId: string) {
   const { user } = useAuth();
   const { data: today } = useAppreciationsToday(user?.uid);
@@ -39,7 +39,7 @@ function useRequest(tankaId: string, revisionId: string) {
       await requestAppreciation(tankaId, revisionId);
     } catch (e) {
       if (e instanceof ApiError && e.status === 429) setLimited(true);
-      else setError(e instanceof Error ? e.message : "鑑賞できませんでした");
+      else setError(e instanceof Error ? e.message : "読まれ方を出せませんでした");
     } finally {
       setBusy(false);
     }
@@ -54,7 +54,7 @@ function RequestButton({ tankaId, revisionId, label }: { tankaId: string; revisi
       <button type="button" className="btn-secondary" disabled={req.busy || req.limited} onClick={req.run}>
         {req.busy ? "準備しています…" : label}
       </button>
-      {req.limited && <p className="small muted" style={{ margin: 0 }}>今日はもう鑑賞できません（1日{APPRECIATION_DAILY_LIMIT}回まで）。</p>}
+      {req.limited && <p className="small muted" style={{ margin: 0 }}>今日はもう見られません（1日{APPRECIATION_DAILY_LIMIT}回まで）。</p>}
       {req.error && <p className="error" style={{ margin: 0 }}>{req.error}</p>}
     </div>
   );
@@ -66,7 +66,7 @@ function Pending({ children }: { children?: ReactNode }) {
       <div className="linked-row" role="status">
         <span className="spinner" aria-hidden="true" />
         <span className="what">
-          <span className="t">鑑賞中</span>
+          <span className="t">AIが読んでいます</span>
           <span className="s">通常30秒ほどで終わります。ほかの画面に移っても結果は保存されます。</span>
         </span>
       </div>
@@ -76,8 +76,8 @@ function Pending({ children }: { children?: ReactNode }) {
 }
 
 /**
- * チェック結果の「鑑賞」の欄。まだなら「鑑賞する」、判定中なら「鑑賞中」、
- * 済んでいれば「浮かんだ場面」の1行と鑑賞へのリンク。
+ * チェック結果の「読まれ方」の欄（機能の名前は設計書の「鑑賞」）。まだなら「読まれ方を見る」、
+ * 判定中なら「AIが読んでいます」、済んでいれば「浮かんだ場面」の1行と読まれ方の画面へのリンク。
  */
 export function AppreciationSection({ tankaId, rev }: { tankaId: string; rev: Revision }) {
   const { data: a, loading } = useAppreciation(tankaId, rev.id);
@@ -87,7 +87,7 @@ export function AppreciationSection({ tankaId, rev }: { tankaId: string; rev: Re
     body = (
       <>
         <p className="small muted" style={{ margin: 0, lineHeight: 1.7 }}>短歌を読み慣れた読み手ならどう読むかを、AIが想定して返します。実際の読み手の感想ではありません。良し悪しは判定しません。</p>
-        <RequestButton tankaId={tankaId} revisionId={rev.id} label="鑑賞する" />
+        <RequestButton tankaId={tankaId} revisionId={rev.id} label="読まれ方を見る" />
       </>
     );
   } else if (a.status === "pending") {
@@ -95,18 +95,18 @@ export function AppreciationSection({ tankaId, rev }: { tankaId: string; rev: Re
   } else if (a.status === "failed") {
     body = (
       <>
-        <p className="error" style={{ margin: 0 }}>鑑賞できませんでした{a.error ? `（${a.error}）` : ""}</p>
-        <RequestButton tankaId={tankaId} revisionId={rev.id} label="もう一度鑑賞する" />
+        <p className="error" style={{ margin: 0 }}>読まれ方を出せませんでした{a.error ? `（${a.error}）` : ""}</p>
+        <RequestButton tankaId={tankaId} revisionId={rev.id} label="もう一度試す" />
       </>
     );
   } else {
     body = (
       <div className="linked-rows detail-rows">
-        <LinkRow title={firstSentence(a.scene)} sub={`第${rev.revisionNo}稿の鑑賞 · ${formatDate(a.createdAt)}`} to={appreciationPath(tankaId, rev.id)} />
+        <LinkRow title={firstSentence(a.scene)} sub={`第${rev.revisionNo}稿の読まれ方 · ${formatDate(a.createdAt)}`} to={appreciationPath(tankaId, rev.id)} />
       </div>
     );
   }
-  return <DetailSection title="鑑賞">{body}</DetailSection>;
+  return <DetailSection title="読まれ方">{body}</DetailSection>;
 }
 
 /** 本文に、立ち止まった箇所・読みが割れそうな箇所の点線を付ける。 */
@@ -212,7 +212,7 @@ function Compare({ tankaId, rev, a }: { tankaId: string; rev: Revision; a: Appre
         </div>
       </div>
       <Link to={appreciationPath(tankaId, parent.id)} style={{ alignSelf: "flex-start", fontSize: 13, fontWeight: 500, textDecoration: "none" }}>
-        第{parent.revisionNo}稿の鑑賞を見る
+        第{parent.revisionNo}稿の読まれ方を見る
       </Link>
     </Block>
   );
@@ -302,13 +302,13 @@ export function AppreciationNotReady({ tankaId, rev, a }: { tankaId: string; rev
         <Pending />
       ) : a?.status === "failed" ? (
         <>
-          <p className="error" style={{ margin: 0 }}>鑑賞できませんでした{a.error ? `（${a.error}）` : ""}</p>
-          <RequestButton tankaId={tankaId} revisionId={rev.id} label="もう一度鑑賞する" />
+          <p className="error" style={{ margin: 0 }}>読まれ方を出せませんでした{a.error ? `（${a.error}）` : ""}</p>
+          <RequestButton tankaId={tankaId} revisionId={rev.id} label="もう一度試す" />
         </>
       ) : (
         <>
-          <p className="muted" style={{ margin: 0, lineHeight: 1.8 }}>この稿はまだ鑑賞していません。</p>
-          <RequestButton tankaId={tankaId} revisionId={rev.id} label="鑑賞する" />
+          <p className="muted" style={{ margin: 0, lineHeight: 1.8 }}>この稿の読まれ方はまだ見ていません。</p>
+          <RequestButton tankaId={tankaId} revisionId={rev.id} label="読まれ方を見る" />
         </>
       )}
     </div>

@@ -341,7 +341,7 @@ class Service:
         if existing is not None and existing.status != "failed":
             return existing, False
         if self.repo.increment_daily_usage(user_id, self._today(), "appreciations") > self.settings.appreciation_daily_limit:
-            raise LimitReached("今日はもう鑑賞できません")
+            raise LimitReached("今日はもう見られません")
         now = _now()
         pending = Appreciation(revisionId=revision_id, status="pending", promptVersion=appreciation_llm.prompt_version(),
                                llmModel=self.llm.client.model, authorNote=existing.authorNote if existing else None,

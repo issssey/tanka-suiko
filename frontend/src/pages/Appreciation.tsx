@@ -14,7 +14,7 @@ export default function AppreciationPage() {
   const sub = a?.status === "done" ? `第${rev.revisionNo}稿 · ${formatDate(a.createdAt)}` : `第${rev.revisionNo}稿`;
   return (
     <>
-      <TopBar back={back} backLabel="チェック結果に戻る" title="鑑賞" sub={sub} />
+      <TopBar back={back} backLabel="チェック結果に戻る" title="読まれ方" sub={sub} />
       <div style={{ padding: "8px 16px 40px" }}>
         {a?.status === "done" ? <AppreciationBody tankaId={tankaId} rev={rev} a={a} /> : <AppreciationNotReady tankaId={tankaId} rev={rev} a={a} />}
       </div>
