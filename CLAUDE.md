@@ -83,6 +83,7 @@ cd backend && .venv/bin/python scripts/export_patterns.py ../frontend/src/genera
 - iPhone の Safari はノッチ部分の色を html・body の背景から取る。スマホ幅では body を地の色（#FAFAF7）にしている
 - iPhone の Safari：16px 未満の入力欄はフォーカスで拡大される（入力欄は 16px）。`input[type=date]` は独自の見た目で幅がはみ出るので appearance を外す。viewport の user-scalable=no は無視されるので、ピンチは main.tsx でジェスチャーのイベントを止めている。この環境に WebKit はないので Safari の見た目は実機で確かめる
 - iPhone のホーム画面から開いたアプリ版（standalone）では、ステータスバーが画面に重なり、iOS の上端のぼかしがステータスバーより下（約80pt）まで伸びる。上の safe-area に地の色の帯（body::before）を置き、standalone のときだけ `--top-extra`（20px）を足して見出しをぼかしの外に出している。Safari ではぼかしの範囲が狭いので足さない。Chromium では display-mode を再現できないので実機で確かめる
+- iPhone では、タップした所の灰色の印（`-webkit-tap-highlight-color`）と `:hover` が、画面を移って戻ってきても残る。印は消して `:active` で押している間だけ色を付け、`:hover` は `@media (hover: hover)` の中にだけ書く
 - CSS の `.pc` は PC版の画面全体の入れ物（縦並び・画面の高さ）。部品の修飾子に `pc` という class 名を付けると巻き込まれる（`lib-tabs-pc` のように別名にする）
 
 ## 検証のしかた
