@@ -20,10 +20,10 @@ export function DetailSection({ title, children }: { title: string; children: Re
 }
 
 /** つながり・履歴の1行。to があれば移動用のリンクにする。 */
-export function LinkRow({ chip, title, sub, stale, to }: { chip: string; title: ReactNode; sub?: ReactNode; stale?: boolean; to?: string }) {
+export function LinkRow({ chip, title, sub, stale, to }: { chip?: string; title: ReactNode; sub?: ReactNode; stale?: boolean; to?: string }) {
   const body = (
     <>
-      <span className="chip outline" style={{ flexShrink: 0 }}>{chip}</span>
+      {chip && <span className="chip outline" style={{ flexShrink: 0 }}>{chip}</span>}
       <span className="what">
         <span className="t">{title}</span>
         {sub && <span className={stale ? "s stale" : "s"}>{sub}</span>}
@@ -55,7 +55,6 @@ export function InfoRows({ rows }: { rows: [string, string][] }) {
   );
 }
 
-/** いちばん下の削除。 */
 /** いちばん下の削除。消えるものと残るものは確認のポップアップでだけ伝え、ここには注記を付けない。 */
 export function DangerFooter({ label, onClick }: { label: string; onClick: () => void }) {
   return (

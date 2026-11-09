@@ -9,7 +9,7 @@ import logging
 from dataclasses import asdict
 from typing import Literal
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, status
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
@@ -20,7 +20,7 @@ from .config import Settings, check_production_safety, get_settings
 from .patterns import load_patterns
 from .preprocess.pipeline import ConfirmedSegment, PreprocessError
 from .repository.base import NotFound
-from .service import BadRequest, Forbidden, Service
+from .service import BadRequest, Forbidden, LimitReached, Service
 from .tasks import CloudTasksEnqueuer, InlineEnqueuer, SyncEnqueuer
 
 logging.basicConfig(level=logging.INFO)
@@ -99,6 +99,18 @@ class AsyncCheckIn(BaseModel):
     tankaId: str
     revisionId: str
     runId: str
+
+
+class AppreciateIn(BaseModel):
+    tankaId: str
+    revisionId: str
+
+
+MAX_APPRECIATION_NOTE = 500
+
+
+class AppreciationNoteIn(BaseModel):
+    note: str | None = Field(default=None, max_length=MAX_APPRECIATION_NOTE)
 
 
 class PurgeIn(BaseModel):
@@ -190,6 +202,8 @@ def build_service(settings: Settings) -> Service:
     def handle(payload: dict) -> None:
         if payload.get("kind") == "purge":
             service.purge_tanka(payload["tankaId"])
+        elif payload.get("kind") == "appreciate":
+            service.run_appreciation(payload["tankaId"], payload["revisionId"])
         else:
             service.run_async_check(payload["tankaId"], payload["revisionId"], payload["runId"])
 
@@ -218,7 +232,7 @@ def create_app(settings: Settings | None = None, service: Service | None = None)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
-        allow_methods=["GET", "POST", "PUT", "DELETE"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
     )
 
@@ -233,6 +247,10 @@ def create_app(settings: Settings | None = None, service: Service | None = None)
     @app.exception_handler(BadRequest)
     async def _bad_request(request: Request, exc: BadRequest):
         return JSONResponse({"detail": str(exc)}, status_code=422)
+
+    @app.exception_handler(LimitReached)
+    async def _limit(request: Request, exc: LimitReached):
+        return JSONResponse({"detail": str(exc)}, status_code=429)
 
     @app.exception_handler(PreprocessError)
     async def _preprocess_error(request: Request, exc: PreprocessError):
@@ -317,6 +335,20 @@ def api_router() -> APIRouter:
     def delete_feedback(tanka_id: str, fingerprint: str, user: str = Depends(current_user), s: Service = Depends(svc)):
         s.delete_feedback(user, tanka_id, fingerprint)
 
+    # --- 鑑賞 ---
+    @r.post("/tankas/{tanka_id}/revisions/{revision_id}/appreciation")
+    def request_appreciation(tanka_id: str, revision_id: str, response: Response, user: str = Depends(current_user),
+                             s: Service = Depends(svc)):
+        """鑑賞を頼む。新しく頼んだら 202（結果は Firestore を購読して受け取る）。すでにあれば既存のものを 200 で返す。"""
+        a, created = s.request_appreciation(user, tanka_id, revision_id)
+        response.status_code = status.HTTP_202_ACCEPTED if created else status.HTTP_200_OK
+        return a.model_dump(mode="json")
+
+    @r.patch("/tankas/{tanka_id}/revisions/{revision_id}/appreciation/note")
+    def appreciation_note(tanka_id: str, revision_id: str, body: AppreciationNoteIn, user: str = Depends(current_user),
+                          s: Service = Depends(svc)):
+        return s.set_appreciation_note(user, tanka_id, revision_id, body.note).model_dump(mode="json")
+
     # --- 連作 ---
     @r.post("/sequences", status_code=status.HTTP_201_CREATED)
     def create_sequence(body: SequenceIn, user: str = Depends(current_user), s: Service = Depends(svc)):
@@ -399,6 +431,12 @@ def worker_router() -> APIRouter:
             # 再試行しても直らないので 200 を返して Cloud Tasks の再配信を止める
             return {"status": "not_found"}
         return {"status": run.status}
+
+    @r.post("/internal/appreciate", dependencies=[Depends(verify_tasks_caller)])
+    def appreciate(body: AppreciateIn, s: Service = Depends(svc)):
+        # LLM のレート制限・5xx は例外で 500 を返し、Cloud Tasks に再試行させる
+        a = s.run_appreciation(body.tankaId, body.revisionId)
+        return {"status": a.status if a else "not_found"}
 
     @r.post("/internal/purge-tanka", dependencies=[Depends(verify_tasks_caller)])
     def purge(body: PurgeIn, s: Service = Depends(svc)):

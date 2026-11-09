@@ -220,6 +220,70 @@ def test_service_total_usage_key_is_accepted(repo):
     assert repo.increment_daily_usage(GLOBAL_USAGE_KEY, "2026-11-07") == 2
 
 
+def test_usage_fields_are_counted_separately(repo):
+    """鑑賞の回数（appreciations）と非同期チェックの回数（asyncChecks）は別に数え、互いを消さない。"""
+    assert repo.increment_daily_usage("u1", "2026-11-09") == 1
+    assert repo.increment_daily_usage("u1", "2026-11-09", "appreciations") == 1
+    assert repo.increment_daily_usage("u1", "2026-11-09", "appreciations") == 2
+    assert repo.increment_daily_usage("u1", "2026-11-09") == 2
+
+
+# --- 鑑賞 ---
+def _appreciation(revision_id: str, status: str = "pending"):
+    from app.models import Appreciation
+
+    now = datetime.now(UTC)
+    return Appreciation(revisionId=revision_id, status=status, createdAt=now, updatedAt=now)
+
+
+def test_appreciation_round_trip(repo):
+    from app.models import AppreciationPause, AppreciationSplit
+
+    t = repo.create_tanka("u1")
+    r = repo.create_revision(t.id, revision_data(BODY1), {})
+    assert repo.get_appreciation(t.id, r.id) is None
+    a, created = repo.create_appreciation_if_absent(t.id, _appreciation(r.id))
+    assert created and a.status == "pending"
+    # 2回目は既存のものを返し、書き換えない
+    again, created = repo.create_appreciation_if_absent(t.id, _appreciation(r.id, "failed"))
+    assert not created and again.status == "pending"
+    done = a.model_copy(update={
+        "status": "done", "scene": "夕方の駅", "feeling": "寂しさ",
+        "pauses": [AppreciationPause(tokenStart=0, tokenEnd=1, span=(0, 3), text="夕暮れ", reason="理由")],
+        "splits": [AppreciationSplit(tokenStart=2, tokenEnd=2, span=(4, 5), text="駅", readings=["a", "b"])],
+    })
+    assert repo.update_appreciation_if_active(t.id, done)
+    got = repo.get_appreciation(t.id, r.id)
+    assert got.status == "done" and got.pauses[0].span == (0, 3) and got.splits[0].readings == ["a", "b"]
+    noted = repo.set_appreciation_note(t.id, r.id, "伝えたかったこと", datetime.now(UTC))
+    assert noted.authorNote == "伝えたかったこと" and noted.scene == "夕方の駅"
+    assert [x.revisionId for x in repo.list_appreciations(t.id)] == [r.id]
+    with pytest.raises(NotFound):
+        repo.set_appreciation_note(t.id, "nope", "x", datetime.now(UTC))
+
+
+def test_failed_appreciation_can_be_replaced(repo):
+    t = repo.create_tanka("u1")
+    r = repo.create_revision(t.id, revision_data(BODY1), {})
+    repo.create_appreciation_if_absent(t.id, _appreciation(r.id, "failed"))
+    a, created = repo.create_appreciation_if_absent(t.id, _appreciation(r.id), replace_failed=True)
+    assert created and a.status == "pending"
+
+
+def test_appreciation_is_refused_and_purged_with_tanka(repo):
+    t = repo.create_tanka("u1")
+    r = repo.create_revision(t.id, revision_data(BODY1), {})
+    a, _ = repo.create_appreciation_if_absent(t.id, _appreciation(r.id))
+    repo.mark_deleted(t.id, datetime.now(UTC))
+    assert not repo.update_appreciation_if_active(t.id, a.model_copy(update={"status": "done"}))
+    with pytest.raises(NotFound):
+        repo.create_appreciation_if_absent(t.id, _appreciation("other"))
+    with pytest.raises(NotFound):
+        repo.set_appreciation_note(t.id, r.id, "x", datetime.now(UTC))
+    repo.purge_tanka(t.id)
+    assert repo.list_appreciations(t.id) == []
+
+
 # --- 連作と発表 ---
 def _seq(author: str, items: list[tuple[str, str]], title: str = "駅の灯"):
     from app.models import Sequence, SequenceItem

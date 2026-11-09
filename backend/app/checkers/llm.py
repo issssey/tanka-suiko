@@ -320,9 +320,12 @@ class AnthropicJSONClient:
 
 
 class NullLLMClient:
-    """LLMを使わない開発用クライアント。常に指摘なしを返す。"""
+    """LLMを使わない開発用クライアント。チェックは常に指摘なし、鑑賞は内容のない読みを返す。"""
 
     model = "none"
 
     def complete_json(self, system, user, schema):  # noqa: D401
+        if "scene" in schema.get("properties", {}):
+            note = "（LLMを使わない設定のため、鑑賞の内容はありません）"
+            return {"scene": note, "feeling": note, "pauses": [], "splits": []}
         return {"findings": []}

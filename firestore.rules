@@ -30,6 +30,12 @@ service cloud.firestore {
         allow read: if ownsTanka(tankaId);
         allow write: if false;
       }
+
+      // 鑑賞（1稿1件）。作者のメモ（authorNote）も API を通して書く
+      match /appreciations/{revisionId} {
+        allow read: if ownsTanka(tankaId);
+        allow write: if false;
+      }
     }
 
     // 連作と発表記録。クライアントは自分のものを読み取るだけ（クエリは where("authorId", "==", uid) を付ける）

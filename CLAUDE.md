@@ -19,6 +19,7 @@ backend/   Python 3.13 / FastAPI。1つのイメージを Cloud Run の tanka-ap
   app/patterns/anti_patterns.yaml   30パターンのマスタ（定義・判定の目安・例・根拠。LLMのプロンプトと画面の両方で使う。根拠はLLMに渡さない）
   app/prompts/llm_check.yaml        LLMの指示文
   app/repository/   firestore.py と memory.py（同じインターフェース。契約テストで両方を確かめる）
+  app/appreciation.py と prompts/appreciation.yaml   鑑賞（頼まれた稿をLLMが1回読む。評価・改作案なし）
   app/service.py    ユースケース。app/main.py はAPIとワーカーのルート
 frontend/  React + Vite + TypeScript。幅1024px以上で PC版（src/pages/pc/*）、未満でスマホ版（src/pages/*）
   src/generated/patterns.json   anti_patterns.yaml から生成（手で編集しない）
@@ -65,7 +66,8 @@ cd backend && .venv/bin/python scripts/export_patterns.py ../frontend/src/genera
 - パターン一覧は名前と重大度だけ。開くと定義・判定の目安・指摘される例、指摘されない例はB・Dだけ。即時／後から・根拠・注意書きは出さない
 - 削除の確認ポップアップで消えるもの・残るものを伝え、詳細ページの削除ボタンには注記を付けない。設定の入口はヘッダー右端の歯車だけ（PCは「設定」の文字を添え、アカウントのアイコンは置かない）
 - 詳細ページ（短歌＝チェック結果・連作・発表記録）は設計書「詳細ページの構造」の順の区画：見出しと情報 → 中身 → つながり → 履歴 → 操作 → 削除（いちばん下）。部品は components/detail.tsx。「出した後に変更があります」は画面側で計算し保存しない。連作から外した直後は5秒保存を遅らせて「元に戻す」を出す
-- users/{uid} は1日の回数（asyncChecks）と出し先の候補（destinations）を持つ。回数を数えるときは asyncChecks だけを置き換える（文書ごと置き換えると候補が消える）
+- users/{uid} は1日の回数（asyncChecks・appreciations）と出し先の候補（destinations）を持つ。回数を数えるときはそのフィールドだけを置き換える（文書ごと置き換えると候補が消える）
+- 鑑賞（設計書「鑑賞」）：作者が稿ごとに頼んだときだけ動かす（1人1日10回、`APPRECIATION_DAILY_LIMIT`）。tankas/{id}/appreciations/{revisionId} に1稿1件。読み手は「短歌を読み慣れた人」1人に固定。LLMには本文・読み・句分け・文体だけを渡し、指摘・前の稿の鑑賞・作者のメモは渡さない。失敗したものだけ頼み直せる。チェック結果では指摘の下（つながりの前）に欄を置く
 
 ## ハマりどころ（実際に踏んだもの）
 

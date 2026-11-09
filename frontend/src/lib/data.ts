@@ -11,7 +11,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { CheckRun, Feedback, Publication, Revision, Sequence, Tanka } from "./types";
+import type { Appreciation, CheckRun, Feedback, Publication, Revision, Sequence, Tanka } from "./types";
 
 export interface Loadable<T> {
   data: T;
@@ -269,6 +269,45 @@ export function useTankaPublications(uid: string | undefined, tankaId: string | 
     [],
     [uid, tankaId],
   );
+}
+
+/** その稿の鑑賞（なければ null）。 */
+export function useAppreciation(tankaId: string | undefined, revisionId: string | null | undefined): Loadable<Appreciation | null> {
+  return useSnapshot<Appreciation | null>(
+    "useAppreciation",
+    tankaId && revisionId
+      ? (set, fail) =>
+          onSnapshot(
+            doc(db, "tankas", tankaId, "appreciations", revisionId),
+            (d) => set(d.exists() ? (convert(d.data()) as Appreciation) : null),
+            fail,
+          )
+      : null,
+    null,
+    [tankaId, revisionId],
+  );
+}
+
+/** 今日（日本時間）頼んだ鑑賞の回数（users/{uid}.appreciations）。 */
+export function useAppreciationsToday(uid: string | undefined): Loadable<number> {
+  return useSnapshot<number>(
+    "useAppreciationsToday",
+    uid
+      ? (set, fail) =>
+          onSnapshot(
+            doc(db, "users", uid),
+            (d) => set(Number(((d.exists() && d.data().appreciations) || {})[todayInTokyo()] ?? 0)),
+            fail,
+          )
+      : null,
+    0,
+    [uid],
+  );
+}
+
+/** 日本時間の今日（YYYY-MM-DD）。1日の回数はこの日付で数える（サーバーの TIMEZONE と同じ）。 */
+export function todayInTokyo(now = new Date()): string {
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Tokyo" }).format(now);
 }
 
 /** 出し先の候補（最近使った順）。 */

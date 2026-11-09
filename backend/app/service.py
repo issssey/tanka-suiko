@@ -9,12 +9,14 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Callable
 from zoneinfo import ZoneInfo
 
+from . import appreciation as appreciation_llm
 from .checkers.base import CheckContext
 from .checkers.llm import LLMChecker, LLMError, prompt_version
 from .checkers.runner import apply_transitions, current_fingerprint, run_async, run_sync
 from .config import Settings
 from .models import (
     MAX_SEQUENCE_ITEMS,
+    Appreciation,
     CheckRun,
     Feedback,
     Finding,
@@ -44,6 +46,10 @@ class Forbidden(PermissionError):
 
 class BadRequest(ValueError):
     pass
+
+
+class LimitReached(RuntimeError):
+    """1日の上限に達した（API では 429）。"""
 
 
 def _now() -> datetime:
@@ -304,7 +310,7 @@ class Service:
                 return finish("done", findings=findings, resolvedFingerprints=resolved,
                               reusedFromRunId=parent_async.id)
 
-        day = datetime.now(ZoneInfo(self.settings.timezone)).strftime("%Y-%m-%d")
+        day = self._today()
         if self.repo.increment_daily_usage(tanka.authorId, day) > self.settings.async_daily_limit:
             return finish("limited")
         # サービス全体の上限（利用者IDとは重ならない名前で数える）
@@ -321,6 +327,60 @@ class Service:
             log.warning("LLM check failed: %s", e)
             return finish("failed", error=str(e))
         return finish("done", findings=outcome.findings, resolvedFingerprints=outcome.resolved)
+
+    # --- 鑑賞 ---
+    def _today(self) -> str:
+        return datetime.now(ZoneInfo(self.settings.timezone)).strftime("%Y-%m-%d")
+
+    def request_appreciation(self, user_id: str, tanka_id: str, revision_id: str) -> tuple[Appreciation, bool]:
+        """鑑賞を頼む。その稿にすでにあれば既存のものを返す（頼み直しはしない。失敗したものだけ頼み直せる）。
+        新しく頼んだら pending を作ってタスクに積み、(鑑賞, True) を返す。1人1日の上限を超えたら LimitReached。"""
+        self._own_tanka(user_id, tanka_id)
+        self.repo.get_revision(tanka_id, revision_id)  # なければ NotFound
+        existing = self.repo.get_appreciation(tanka_id, revision_id)
+        if existing is not None and existing.status != "failed":
+            return existing, False
+        if self.repo.increment_daily_usage(user_id, self._today(), "appreciations") > self.settings.appreciation_daily_limit:
+            raise LimitReached("今日はもう頼めません")
+        now = _now()
+        pending = Appreciation(revisionId=revision_id, status="pending", promptVersion=appreciation_llm.prompt_version(),
+                               llmModel=self.llm.client.model, authorNote=existing.authorNote if existing else None,
+                               createdAt=now, updatedAt=now)
+        saved, created = self.repo.create_appreciation_if_absent(tanka_id, pending, replace_failed=True)
+        if created:
+            self.enqueuer.enqueue({"kind": "appreciate", "tankaId": tanka_id, "revisionId": revision_id}, 0)
+        return saved, created
+
+    def run_appreciation(self, tanka_id: str, revision_id: str) -> Appreciation | None:
+        """鑑賞のタスク（ワーカー）。LLMを1回呼び、結果を書く。"""
+        current = self.repo.get_appreciation(tanka_id, revision_id)
+        if current is None or current.status != "pending":
+            return current  # Cloud Tasks の再配信。すでに処理済み
+        try:
+            tanka = self.repo.get_tanka(tanka_id)
+        except NotFound:
+            return None
+        if tanka.deletedAt is not None:
+            return None
+        revision = self.repo.get_revision(tanka_id, revision_id)
+        try:
+            result = appreciation_llm.appreciate(self.llm.client, revision)
+        except LLMError as e:
+            log.warning("appreciation failed: %s", e)
+            done = current.model_copy(update={"status": "failed", "error": str(e), "updatedAt": _now()})
+        else:
+            done = current.model_copy(update={"status": "done", "error": None, "updatedAt": _now(), **result})
+        # 作者が待つあいだにメモを書いていたら残す。実行中に短歌が削除されていたら書かない
+        latest = self.repo.get_appreciation(tanka_id, revision_id)
+        if latest is not None:
+            done.authorNote = latest.authorNote
+        self.repo.update_appreciation_if_active(tanka_id, done)
+        return done
+
+    def set_appreciation_note(self, user_id: str, tanka_id: str, revision_id: str, note: str | None) -> Appreciation:
+        """伝えたかったこと（作者のメモ）を保存する。AIは読みと合っているかを判定しない。"""
+        self._own_tanka(user_id, tanka_id)
+        return self.repo.set_appreciation_note(tanka_id, revision_id, (note or "").strip() or None, _now())
 
     # --- 作者の判断 ---
     def set_feedback(self, user_id: str, tanka_id: str, fingerprint: str, status: str, comment: str | None,
@@ -518,7 +578,7 @@ class Service:
 
     # --- アカウント ---
     def export_user(self, user_id: str) -> dict[str, Any]:
-        """自分のすべての短歌・稿・チェック結果・作者の判断・連作・発表記録を書き出す。"""
+        """自分のすべての短歌・稿・チェック結果・作者の判断・鑑賞・連作・発表記録を書き出す。"""
         tankas = []
         for t in self.repo.list_tankas_by_author(user_id):
             revisions = self.repo.list_revisions(t.id)
@@ -527,6 +587,7 @@ class Service:
                 "createdAt": t.createdAt.isoformat(),
                 "updatedAt": t.updatedAt.isoformat(),
                 "feedback": [f.model_dump(mode="json") for f in self.repo.list_feedback(t.id)],
+                "appreciations": [a.model_dump(mode="json") for a in self.repo.list_appreciations(t.id)],
                 "revisions": [
                     {
                         "id": r.id,

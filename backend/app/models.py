@@ -164,3 +164,45 @@ class Publication(Model):
     tankaIds: list[str]  # 二重投稿の検索用（array-contains）
     createdAt: datetime
     updatedAt: datetime
+
+
+# --- 鑑賞 ---
+AppreciationStatus = Literal["pending", "done", "failed"]
+
+
+class AppreciationPause(Model):
+    """立ち止まった箇所。語句は形態素の番号で受け取り、文字位置と文字列はサーバー側で復元する。"""
+
+    tokenStart: int
+    tokenEnd: int
+    span: tuple[int, int]
+    text: str
+    reason: str
+
+
+class AppreciationSplit(Model):
+    """読みが割れそうな箇所と、考えられる読み（2〜3通り）。"""
+
+    tokenStart: int
+    tokenEnd: int
+    span: tuple[int, int]
+    text: str
+    readings: list[str]
+
+
+class Appreciation(Model):
+    """作者が頼んだ稿の鑑賞（短歌を読み慣れた読み手がどう読むか）。1稿1件。評価や改作案は持たない。"""
+
+    revisionId: str
+    status: AppreciationStatus
+    reader: Literal["experienced"] = "experienced"
+    promptVersion: str | None = None
+    llmModel: str | None = None
+    scene: str | None = None
+    feeling: str | None = None
+    pauses: list[AppreciationPause] = Field(default_factory=list)
+    splits: list[AppreciationSplit] = Field(default_factory=list)
+    authorNote: str | None = None  # 伝えたかったこと（作者のメモ。LLMには渡さない）
+    error: str | None = None
+    createdAt: datetime
+    updatedAt: datetime

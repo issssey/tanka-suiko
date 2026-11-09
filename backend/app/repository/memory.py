@@ -7,7 +7,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from ..models import MAX_DESTINATIONS, CheckRun, Feedback, Publication, Revision, Sequence, Tanka
+from ..models import MAX_DESTINATIONS, Appreciation, CheckRun, Feedback, Publication, Revision, Sequence, Tanka
 from .base import NotFound
 
 
@@ -22,7 +22,8 @@ class MemoryRepository:
         self.revisions: dict[str, dict[str, Revision]] = {}
         self.runs: dict[tuple[str, str], dict[str, CheckRun]] = {}
         self.feedback: dict[str, dict[str, Feedback]] = {}
-        self.usage: dict[tuple[str, str], int] = {}
+        self.usage: dict[tuple[str, str, str], int] = {}
+        self.appreciations: dict[str, dict[str, Appreciation]] = {}
         self.users: set[str] = set()
         self.sequences: dict[str, Sequence] = {}
         self.publications: dict[str, Publication] = {}
@@ -114,12 +115,50 @@ class MemoryRepository:
         with self._lock:
             return [f.model_copy(deep=True) for f in self.feedback.get(tanka_id, {}).values()]
 
-    def increment_daily_usage(self, user_id: str, day: str) -> int:
+    def increment_daily_usage(self, user_id: str, day: str, field: str = "asyncChecks") -> int:
         with self._lock:
             self.users.add(user_id)
-            key = (user_id, day)
+            key = (user_id, field, day)
             self.usage[key] = self.usage.get(key, 0) + 1
             return self.usage[key]
+
+    # --- 鑑賞 ---
+    def get_appreciation(self, tanka_id: str, revision_id: str) -> Appreciation | None:
+        with self._lock:
+            a = self.appreciations.get(tanka_id, {}).get(revision_id)
+            return a.model_copy(deep=True) if a else None
+
+    def create_appreciation_if_absent(self, tanka_id: str, appreciation: Appreciation,
+                                      replace_failed: bool = False) -> tuple[Appreciation, bool]:
+        with self._lock:
+            if not self._active(tanka_id):
+                raise NotFound(tanka_id)
+            bucket = self.appreciations.setdefault(tanka_id, {})
+            existing = bucket.get(appreciation.revisionId)
+            if existing is not None and not (replace_failed and existing.status == "failed"):
+                return existing.model_copy(deep=True), False
+            bucket[appreciation.revisionId] = appreciation.model_copy(deep=True)
+            return appreciation.model_copy(deep=True), True
+
+    def update_appreciation_if_active(self, tanka_id: str, appreciation: Appreciation) -> bool:
+        with self._lock:
+            if not self._active(tanka_id):
+                return False
+            self.appreciations.setdefault(tanka_id, {})[appreciation.revisionId] = appreciation.model_copy(deep=True)
+            return True
+
+    def set_appreciation_note(self, tanka_id: str, revision_id: str, note: str | None, at: datetime) -> Appreciation:
+        with self._lock:
+            a = self.appreciations.get(tanka_id, {}).get(revision_id)
+            if not self._active(tanka_id) or a is None:
+                raise NotFound(revision_id)
+            a.authorNote = note
+            a.updatedAt = at
+            return a.model_copy(deep=True)
+
+    def list_appreciations(self, tanka_id: str) -> list[Appreciation]:
+        with self._lock:
+            return [a.model_copy(deep=True) for a in self.appreciations.get(tanka_id, {}).values()]
 
     def mark_deleted(self, tanka_id: str, at: datetime) -> None:
         with self._lock:
@@ -132,6 +171,7 @@ class MemoryRepository:
             self.tankas.pop(tanka_id, None)
             self.revisions.pop(tanka_id, None)
             self.feedback.pop(tanka_id, None)
+            self.appreciations.pop(tanka_id, None)
             for key in [k for k in self.runs if k[0] == tanka_id]:
                 del self.runs[key]
 

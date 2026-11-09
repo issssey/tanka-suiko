@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { useWide } from "./lib/responsive";
 import { Loading } from "./components/ui";
+import AppreciationPage from "./pages/Appreciation";
+import PcAppreciation from "./pages/pc/PcAppreciation";
 import LoginPage from "./pages/Login";
 import ListPage from "./pages/List";
 import NewTankaPage from "./pages/NewTanka";
@@ -56,6 +58,7 @@ function Screens() {
         {/* PC版は書く画面で読みも確かめるので、確認画面はスマホ版だけ */}
         <Route path="/t/:tankaId/reading" element={auth(<ReadingPage />)} />
         <Route path="/t/:tankaId/r/:revisionId" element={auth(pick(<ResultPage />, <PcResult mode="list" />))} />
+        <Route path="/t/:tankaId/r/:revisionId/appreciation" element={auth(pick(<AppreciationPage />, <PcAppreciation />))} />
         <Route path="/t/:tankaId/r/:revisionId/f/:fingerprint" element={auth(pick(<FindingPage />, <PcResult mode="finding" />))} />
         <Route path="/t/:tankaId/history" element={auth(pick(<HistoryPage />, <PcHistory />))} />
         <Route path="/t/:tankaId/compare" element={auth(pick(<ComparePage />, <PcHistory />))} />

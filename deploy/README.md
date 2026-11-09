@@ -74,6 +74,7 @@ Secret Manager、GitHub 連携をまとめて作る。何度実行してもよ�
 | `LLM_EFFORT` | 任意。`low` / `medium` / `high` |
 | `ASYNC_DAILY_LIMIT` | 任意。作者1人あたりの1日の意味のチェックの回数。既定は 100 |
 | `ASYNC_GLOBAL_DAILY_LIMIT` | 任意。サービス全体の1日の意味のチェックの回数。既定は 3000（Sonnet 5.5 で1日あたり最大およそ100ドル） |
+| `APPRECIATION_DAILY_LIMIT` | 任意。作者1人あたりの1日の鑑賞の回数。既定は 10 |
 | `EXTRA_CORS_ORIGINS` | 任意。独自ドメインを使う場合、そのURL（例：`https://suiko.example.com`） |
 
 `prd` の Environment には、次も設定しておくとよい。

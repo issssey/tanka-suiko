@@ -151,3 +151,26 @@ export interface Publication {
   createdAt: Date;
   updatedAt: Date;
 }
+
+/** 鑑賞の語句。番号は形態素、span は本文（bodyNormalized）上の文字位置。 */
+interface AppreciationPhrase {
+  tokenStart: number;
+  tokenEnd: number;
+  span: [number, number];
+  text: string;
+}
+
+/** 作者が頼んだ稿の鑑賞（tankas/{tankaId}/appreciations/{revisionId}）。評価や改作案は持たない。 */
+export interface Appreciation {
+  revisionId: string;
+  status: "pending" | "done" | "failed";
+  reader: "experienced";
+  scene: string | null;
+  feeling: string | null;
+  pauses: (AppreciationPhrase & { reason: string })[];
+  splits: (AppreciationPhrase & { readings: string[] })[];
+  authorNote: string | null;
+  error: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}

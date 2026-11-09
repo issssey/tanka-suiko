@@ -3,6 +3,7 @@
 本番は Cloud Tasks → ワーカーの Cloud Run。
 - 非同期チェック（/internal/async-check）：配信を数秒遅らせ、連続保存されたときは最後の版だけをLLMにかける
 - 短歌の削除の再試行（/internal/purge-tanka）：payload の kind が "purge" のもの
+- 鑑賞（/internal/appreciate）：payload の kind が "appreciate" のもの
 """
 
 from __future__ import annotations
@@ -52,7 +53,7 @@ class InlineEnqueuer:
 
 
 class CloudTasksEnqueuer:
-    PATHS = {"purge": "/internal/purge-tanka"}
+    PATHS = {"purge": "/internal/purge-tanka", "appreciate": "/internal/appreciate"}
     DEFAULT_PATH = "/internal/async-check"
 
     def __init__(self, queue: str, worker_url: str, service_account: str, audience: str | None = None) -> None:

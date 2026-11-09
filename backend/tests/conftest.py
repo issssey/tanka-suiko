@@ -40,5 +40,14 @@ def fake_llm():
 def service(patterns, fake_llm):
     settings = Settings(tasks_mode="sync", async_delay_seconds=0)
     svc = Service(MemoryRepository(), SyncEnqueuer(), LLMChecker(fake_llm), settings, patterns)
-    svc.enqueuer = SyncEnqueuer(lambda p: svc.run_async_check(p["tankaId"], p["revisionId"], p["runId"]))
+
+    def handle(p):
+        if p.get("kind") == "appreciate":
+            svc.run_appreciation(p["tankaId"], p["revisionId"])
+        elif p.get("kind") == "purge":
+            svc.purge_tanka(p["tankaId"])
+        else:
+            svc.run_async_check(p["tankaId"], p["revisionId"], p["runId"])
+
+    svc.enqueuer = SyncEnqueuer(handle)
     return svc

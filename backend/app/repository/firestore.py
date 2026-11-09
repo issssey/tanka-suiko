@@ -14,7 +14,7 @@ from typing import Any
 from google.cloud import firestore
 from google.cloud.firestore_v1.field_path import FieldPath
 
-from ..models import MAX_DESTINATIONS, CheckRun, Feedback, Publication, Revision, Sequence, Tanka
+from ..models import MAX_DESTINATIONS, Appreciation, CheckRun, Feedback, Publication, Revision, Sequence, Tanka
 from .base import NotFound
 
 
@@ -51,6 +51,9 @@ class FirestoreRepository:
 
     def _feedback(self, tanka_id: str):
         return self._tanka(tanka_id).collection("feedback")
+
+    def _appreciations(self, tanka_id: str):
+        return self._tanka(tanka_id).collection("appreciations")
 
     # --- tankas ---
     def create_tanka(self, author_id: str) -> Tanka:
@@ -165,20 +168,70 @@ class FirestoreRepository:
         return [Feedback(**s.to_dict()) for s in self._feedback(tanka_id).stream()]
 
     # --- usage ---
-    def increment_daily_usage(self, user_id: str, day: str) -> int:
+    def increment_daily_usage(self, user_id: str, day: str, field: str = "asyncChecks") -> int:
         ref = self.db.collection("users").document(user_id)
         transaction = self.db.transaction()
 
         @firestore.transactional
         def run(tx) -> int:
             snap = ref.get(transaction=tx)
-            usage = (snap.to_dict() or {}).get("asyncChecks", {}) if snap.exists else {}
+            usage = (snap.to_dict() or {}).get(field, {}) if snap.exists else {}
             count = int(usage.get(day, 0)) + 1
-            # その日の分だけを残す（前日以前の回数は不要）。asyncChecks だけを置き換え、出し先の候補は残す
-            tx.set(ref, {"asyncChecks": {day: count}}, merge=["asyncChecks"])
+            # その日の分だけを残す（前日以前の回数は不要）。その field だけを置き換え、出し先の候補などは残す
+            tx.set(ref, {field: {day: count}}, merge=[field])
             return count
 
         return run(transaction)
+
+    # --- 鑑賞 ---
+    def get_appreciation(self, tanka_id: str, revision_id: str) -> Appreciation | None:
+        snap = self._appreciations(tanka_id).document(revision_id).get()
+        return Appreciation(**snap.to_dict()) if snap.exists else None
+
+    def create_appreciation_if_absent(self, tanka_id: str, appreciation: Appreciation,
+                                      replace_failed: bool = False) -> tuple[Appreciation, bool]:
+        tanka_ref = self._tanka(tanka_id)
+        ref = self._appreciations(tanka_id).document(appreciation.revisionId)
+        transaction = self.db.transaction()
+
+        @firestore.transactional
+        def run(tx) -> tuple[Appreciation, bool]:
+            tanka_snap = tanka_ref.get(transaction=tx)
+            snap = ref.get(transaction=tx)
+            if not self._is_active(tanka_snap):
+                raise NotFound(tanka_id)
+            if snap.exists:
+                existing = Appreciation(**snap.to_dict())
+                if not (replace_failed and existing.status == "failed"):
+                    return existing, False
+            tx.set(ref, _tuples_to_lists(appreciation.model_dump(mode="python")))
+            return appreciation, True
+
+        return run(transaction)
+
+    def update_appreciation_if_active(self, tanka_id: str, appreciation: Appreciation) -> bool:
+        ref = self._appreciations(tanka_id).document(appreciation.revisionId)
+        return self._write_if_active(tanka_id, ref, _tuples_to_lists(appreciation.model_dump(mode="python")))
+
+    def set_appreciation_note(self, tanka_id: str, revision_id: str, note: str | None, at: datetime) -> Appreciation:
+        tanka_ref = self._tanka(tanka_id)
+        ref = self._appreciations(tanka_id).document(revision_id)
+        transaction = self.db.transaction()
+
+        @firestore.transactional
+        def run(tx) -> Appreciation:
+            tanka_snap = tanka_ref.get(transaction=tx)
+            snap = ref.get(transaction=tx)
+            if not self._is_active(tanka_snap) or not snap.exists:
+                raise NotFound(revision_id)
+            # 作者のメモだけを書き換える（鑑賞の中身はワーカーだけが書く）
+            tx.update(ref, {"authorNote": note, "updatedAt": at})
+            return Appreciation(**{**snap.to_dict(), "authorNote": note, "updatedAt": at})
+
+        return run(transaction)
+
+    def list_appreciations(self, tanka_id: str) -> list[Appreciation]:
+        return [Appreciation(**s.to_dict()) for s in self._appreciations(tanka_id).stream()]
 
     # --- 削除 ---
     def mark_deleted(self, tanka_id: str, at: datetime) -> None:

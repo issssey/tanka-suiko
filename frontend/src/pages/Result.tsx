@@ -7,6 +7,7 @@ import { loadSettings } from "../lib/settings";
 import { CheckIcon, ConfirmDialog, FindingCard, formatDate, HighlightedPoem, Loading, RestoreDialog, TopBar } from "../components/ui";
 import type { CheckRun } from "../lib/types";
 import { DeleteNote } from "../components/library";
+import { AppreciationSection } from "../components/appreciation";
 import { DangerFooter, TankaActions, TankaHistory, TankaRelations } from "../components/detail";
 
 export default function ResultPage() {
@@ -202,7 +203,8 @@ export default function ResultPage() {
         </p>
       )}
 
-      {/* つながり → 履歴 → 操作 → 削除（設計書「詳細ページの構造」） */}
+      {/* 鑑賞（設計書「鑑賞」：指摘の下）→ つながり → 履歴 → 操作 → 削除（設計書「詳細ページの構造」） */}
+      <AppreciationSection tankaId={tankaId} rev={rev} />
       {tanka && <TankaRelations tanka={tanka} rev={rev} />}
       <TankaHistory tankaId={tankaId} />
       {tanka && (

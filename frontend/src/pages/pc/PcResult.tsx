@@ -9,6 +9,7 @@ import { findingsOf, findingTimeline } from "../../lib/timeline";
 import type { CheckRun, Finding } from "../../lib/types";
 import { PcShell, PcTally, VerticalPoem } from "../../components/pc";
 import { DeleteNote } from "../../components/library";
+import { AppreciationSection } from "../../components/appreciation";
 import { DangerFooter, TankaActions, TankaHistory, TankaRelations } from "../../components/detail";
 import { BackIcon, CheckIcon, ConfirmDialog, formatDate, Loading, RestoreDialog, SeverityBadge, TransitionBadge } from "../../components/ui";
 
@@ -139,7 +140,8 @@ export default function PcResult({ mode, revisionIdOverride }: { mode: Mode; rev
         ) : (
           <PcTally counts={s.counts} />
         ))}
-      {/* つながり → 履歴 → 操作 → 削除（設計書「詳細ページの構造」） */}
+      {/* 鑑賞（設計書「鑑賞」）→ つながり → 履歴 → 操作 → 削除（設計書「詳細ページの構造」） */}
+      <AppreciationSection tankaId={tankaId} rev={rev} />
       {tanka && <TankaRelations tanka={tanka} rev={rev} />}
       <TankaHistory tankaId={tankaId} />
       {tanka && <TankaActions tanka={tanka} rev={rev} onRestore={!isCurrent ? () => setConfirmRestore(true) : undefined} restoring={actions.busy === "restore"} />}

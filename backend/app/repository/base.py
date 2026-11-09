@@ -6,6 +6,7 @@
     revisions/{revisionId}                      … 保存後は変更しない
       checkRuns/{runId}                         … findings を配列で持つ
     feedback/{fingerprint}                      … 作者の判断（短歌単位）
+    appreciations/{revisionId}                  … 鑑賞（1稿1件。稿とは別のドキュメント）
   sequences/{sequenceId}                        … 連作。tankas.sequenceIds を同じトランザクションで更新
   publications/{publicationId}                  … 発表記録。tankas.publishedCount と users.destinations も同時に更新
 
@@ -18,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Protocol
 
-from ..models import CheckRun, Feedback, Publication, Revision, Sequence, Tanka
+from ..models import Appreciation, CheckRun, Feedback, Publication, Revision, Sequence, Tanka
 
 
 class NotFound(LookupError):
@@ -61,16 +62,36 @@ class Repository(Protocol):
 
     def list_feedback(self, tanka_id: str) -> list[Feedback]: ...
 
-    def increment_daily_usage(self, user_id: str, day: str) -> int:
-        """その日の非同期チェック回数を1増やし、増やしたあとの回数を返す。"""
+    def increment_daily_usage(self, user_id: str, day: str, field: str = "asyncChecks") -> int:
+        """その日の回数（users/{uid} の field。非同期チェックは asyncChecks、鑑賞は appreciations）を1増やし、
+        増やしたあとの回数を返す。その field だけを置き換え、ほかのフィールドは残す。"""
         ...
+
+    # --- 鑑賞 ---
+    def get_appreciation(self, tanka_id: str, revision_id: str) -> Appreciation | None: ...
+
+    def create_appreciation_if_absent(self, tanka_id: str, appreciation: Appreciation,
+                                      replace_failed: bool = False) -> tuple[Appreciation, bool]:
+        """その稿の鑑賞がなければ作って (作ったもの, True)。あれば (既存のもの, False)。
+        replace_failed なら、失敗した鑑賞は置き換える。短歌が削除中なら NotFound。"""
+        ...
+
+    def update_appreciation_if_active(self, tanka_id: str, appreciation: Appreciation) -> bool:
+        """短歌が存在し削除中でなければ書いて True（ワーカーが結果を書く）。"""
+        ...
+
+    def set_appreciation_note(self, tanka_id: str, revision_id: str, note: str | None, at: datetime) -> Appreciation:
+        """作者のメモ（authorNote）だけを書き換える。鑑賞がないか短歌が削除中なら NotFound。"""
+        ...
+
+    def list_appreciations(self, tanka_id: str) -> list[Appreciation]: ...
 
     def mark_deleted(self, tanka_id: str, at: datetime) -> None:
         """deletedAt を立てる（一覧から即座に消え、以降の書き込みを拒否する目印）。"""
         ...
 
     def purge_tanka(self, tanka_id: str) -> None:
-        """短歌と配下（revisions・checkRuns・feedback）をすべて消す。何度呼んでもよい。"""
+        """短歌と配下（revisions・checkRuns・feedback・appreciations）をすべて消す。何度呼んでもよい。"""
         ...
 
     def list_deleted_tankas(self, before: datetime) -> list[str]:

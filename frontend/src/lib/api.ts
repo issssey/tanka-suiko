@@ -53,6 +53,16 @@ export async function downloadExport() {
   URL.revokeObjectURL(url);
 }
 
+/** 鑑賞を頼む。新しく頼んだら pending が返り、結果は Firestore を購読して受け取る。1日の上限を超えたら 429。 */
+export function requestAppreciation(tankaId: string, revisionId: string) {
+  return request<unknown>("POST", `/tankas/${tankaId}/revisions/${revisionId}/appreciation`);
+}
+
+/** 伝えたかったこと（作者のメモ）を保存する。 */
+export function saveAppreciationNote(tankaId: string, revisionId: string, note: string) {
+  return request<unknown>("PATCH", `/tankas/${tankaId}/revisions/${revisionId}/appreciation/note`, { note });
+}
+
 /** アカウント削除。すべての短歌を削除し、ログイン情報も消す。 */
 export function deleteAccount() {
   return request<void>("DELETE", "/me");
