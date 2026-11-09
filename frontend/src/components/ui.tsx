@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { findingTitle, highlightParts, SEVERITY_LABEL } from "../lib/findings";
 import type { Finding, Severity, Transition } from "../lib/types";
@@ -28,9 +28,9 @@ export function ClockIcon() {
   );
 }
 
-export function GearIcon() {
+export function GearIcon({ size = 22, strokeWidth = 1.6 }: { size?: number; strokeWidth?: number } = {}) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
     </svg>
@@ -227,4 +227,20 @@ export function formatDay(d: Date | undefined | null): string {
 
 export function Loading() {
   return <div className="center-msg">読み込み中…</div>;
+}
+
+/** 短歌として読み取れない入力（API の 422）のとき、エラーの下に出す説明。基準は極端なものだけ。 */
+export function UnreadableHelp({ style }: { style?: CSSProperties }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, ...style }}>
+      <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.8 }}>意味の通らない入力は、チェックをしません。次のような場合に、ここで止まります。</p>
+      <ul style={{ margin: 0, paddingLeft: "1.2em", fontSize: 13, lineHeight: 1.9, color: "var(--text-2)" }}>
+        <li>同じ文字が7字以上続いている</li>
+        <li>使われている文字の種類が少なすぎる</li>
+        <li>かなや漢字がほとんど含まれていない</li>
+        <li>意味を持つ語（名詞・動詞・形容詞など）が見つからない</li>
+      </ul>
+      <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.8 }}>オノマトペや感動詞の多い歌は、意味を持つ語があればチェックします。</p>
+    </div>
+  );
 }

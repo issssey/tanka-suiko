@@ -82,3 +82,44 @@ export function publicationChanged(pub: Publication, seq: Pick<Sequence, "title"
   if (pub.items.length !== seq.items.length) return true;
   return pub.items.some((it, i) => it.tankaId !== seq.items[i].tankaId || it.revisionId !== seq.items[i].revisionId);
 }
+
+/** 新しい発表記録から（出した日、同じ日は記録した順）。 */
+function newestPublicationFirst(a: Publication, b: Publication): number {
+  if (a.submittedOn !== b.submittedOn) return a.submittedOn < b.submittedOn ? 1 : -1;
+  return b.createdAt.getTime() - a.createdAt.getTime();
+}
+
+/** 新しいもの1件の名前に「ほか N件」を添える。 */
+function withOthers(label: string, count: number): string {
+  return count > 1 ? `${label} ほか${count - 1}件` : label;
+}
+
+/**
+ * 一覧のカードのチップ「発表：みなと新聞 歌壇」。記録から自動で出し、別のフラグは持たない。
+ * 記録をまだ読み込んでいないときは、tankas.publishedCount から「発表済み」とだけ出す。
+ */
+export function tankaPublicationChip(tanka: Pick<Tanka, "id" | "publishedCount">, pubs: Publication[]): string | null {
+  const mine = pubs.filter((p) => p.tankaIds.includes(tanka.id)).sort(newestPublicationFirst);
+  const count = Math.max(mine.length, tanka.publishedCount ?? 0);
+  if (count === 0) return null;
+  if (mine.length === 0) return "発表済み";
+  return withOthers(`発表：${mine[0].destination}`, count);
+}
+
+/** 一覧のカードのチップ「連作：駅の灯」。複数なら最近更新した連作に「ほか N件」。 */
+export function tankaSequenceChip(tanka: Pick<Tanka, "id" | "sequenceIds">, sequences: Sequence[]): string | null {
+  const ids = new Set(tanka.sequenceIds ?? []);
+  const mine = sequences
+    .filter((s) => ids.has(s.id) || s.items.some((i) => i.tankaId === tanka.id))
+    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  const count = Math.max(mine.length, ids.size);
+  if (count === 0) return null;
+  if (mine.length === 0) return "連作";
+  return withOthers(`連作：${sequenceTitle(mine[0])}`, count);
+}
+
+/** 連作のカードのチップ「発表：青嶺短歌賞」（この連作を出した記録）。 */
+export function sequencePublicationChip(seq: Pick<Sequence, "id">, pubs: Publication[]): string | null {
+  const mine = pubs.filter((p) => p.sequenceId === seq.id).sort(newestPublicationFirst);
+  return mine.length === 0 ? null : withOthers(`発表：${mine[0].destination}`, mine.length);
+}

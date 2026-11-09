@@ -7,6 +7,7 @@ import { useSettings } from "../../lib/settings";
 import { PcHeader } from "../../components/pc";
 import { PatternList } from "../../components/PatternList";
 import { ConfirmDialog } from "../../components/ui";
+import { DeleteAccountText, EXPORT_NOTE } from "../../components/account";
 
 const SECTIONS = [
   { id: "account", label: "アカウント" },
@@ -97,27 +98,15 @@ export default function PcSettings() {
 
           <section id="patterns">
             <h2>指摘されるパターン一覧</h2>
-            <p className="muted" style={{ margin: "0 0 12px", fontSize: 13 }}>「即時」は保存と同時に、「後から」は保存後30秒ほどで結果が出ます。パターンを選ぶと、説明と例が開きます。</p>
             <PatternList wide />
           </section>
 
           <section id="data">
             <h2>データ</h2>
-            <div className="card" style={{ padding: "4px 20px" }}>
-              <div className="toggle-row">
-                <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  <span style={{ fontSize: 14 }}>すべての短歌を書き出す</span>
-                  <span className="small muted">すべての稿をJSONファイルで保存します</span>
-                </span>
-                <button type="button" className="pc-btn" disabled={account.busy !== null} onClick={account.exportAll}>すべての短歌を書き出す</button>
-              </div>
-              <div className="toggle-row">
-                <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  <span style={{ fontSize: 14, color: "var(--high)" }}>アカウントを削除</span>
-                  <span className="small muted">すべての短歌とログイン情報を削除します</span>
-                </span>
-                <button type="button" className="pc-btn danger" disabled={account.busy !== null} onClick={() => setConfirm(true)}>アカウントを削除</button>
-              </div>
+            <p className="muted" style={{ margin: "0 0 12px", fontSize: 13, lineHeight: 1.7 }}>{EXPORT_NOTE}</p>
+            <div className="card" style={{ display: "flex", gap: 12, flexWrap: "wrap", padding: "18px 20px" }}>
+              <button type="button" className="pc-btn" disabled={account.busy !== null} onClick={account.exportAll}>すべてのデータを書き出す</button>
+              <button type="button" className="pc-btn danger" disabled={account.busy !== null} onClick={() => setConfirm(true)}>アカウントを削除</button>
             </div>
             {account.error && <p className="error" style={{ margin: "12px 0 0" }}>{account.error}</p>}
           </section>
@@ -131,10 +120,7 @@ export default function PcSettings() {
           onConfirm={() => account.removeAccount().catch(() => setConfirm(false))}
           onCancel={() => setConfirm(false)}
         >
-          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8 }}>
-            すべての短歌と稿、チェック結果、「意図的」「誤検出」にした指摘、ログイン情報が削除されます。
-            <strong>削除すると元に戻せません。</strong>必要なら、先に「すべての短歌を書き出す」で保存してください。
-          </p>
+          <DeleteAccountText />
         </ConfirmDialog>
       )}
     </div>

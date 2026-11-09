@@ -4,10 +4,11 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { checkPublications, createPublication, deletePublication, updatePublication } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useDestinations, usePublication, usePublications, useRevision, useRevisions, useSequences, useTankaPublications, useTankas } from "../lib/data";
-import { duplicateLine, formatDay, publicationSummary, sequenceDuplicateLine, sequenceTitle, todayISO } from "../lib/publishing";
+import { duplicateLine, formatDay, publicationSummary, sequenceDuplicateLine, sequencePublicationChip, sequenceTitle, todayISO } from "../lib/publishing";
 import type { Publication, Tanka } from "../lib/types";
+import { DeletePublicationDialog } from "./detail";
 import { TankaPickerSheet, WarnIcon } from "./library";
-import { ConfirmDialog, Loading } from "./ui";
+import { Loading } from "./ui";
 
 type Mode = "tanka" | "sequence";
 /** 選んだ歌。revisionId が null なら、いまの稿 */
@@ -161,7 +162,7 @@ export function PublishForm({ pc }: { pc?: boolean }) {
         <ul className="choice-list" aria-label="連作">
           {sequences.map((s) => {
             // 選ぶ時点で、出したことがあるかを見せる（連作として出したか、中に出した歌があるか）
-            const published = allPubs.some((p) => p.sequenceId === s.id);
+            const published = sequencePublicationChip(s, allPubs);
             const publishedSongs = s.items.filter((i) => (tankas.find((t) => t.id === i.tankaId)?.publishedCount ?? 0) > 0).length;
             return (
               <li key={s.id}>
@@ -170,9 +171,9 @@ export function PublishForm({ pc }: { pc?: boolean }) {
                   <span style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                     <span className="small muted">{s.items.length}首{s.items.length === 0 && " · 歌が入っていません"}</span>
                     {published ? (
-                      <span className="chip outline-accent">発表済み</span>
+                      <span className="chip outline">{published}</span>
                     ) : publishedSongs > 0 ? (
-                      <span className="chip outline-accent">出した歌 {publishedSongs}首</span>
+                      <span className="chip outline">出した歌 {publishedSongs}首</span>
                     ) : null}
                   </span>
                 </button>
@@ -271,10 +272,8 @@ export function PublishForm({ pc }: { pc?: boolean }) {
           onClose={() => setPicking(null)}
         />
       )}
-      {confirmDelete && (
-        <ConfirmDialog title="この記録を削除しますか？" confirmLabel="記録を削除する" busy={busy === "delete"} onConfirm={remove} onCancel={() => setConfirmDelete(false)}>
-          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8 }}>短歌と連作は消えません。</p>
-        </ConfirmDialog>
+      {confirmDelete && existing && (
+        <DeletePublicationDialog pub={existing} busy={busy === "delete"} onConfirm={remove} onCancel={() => setConfirmDelete(false)} />
       )}
     </>
   );

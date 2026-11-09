@@ -1,12 +1,14 @@
 // 読みと句分けの取得（前処理）と、確定した読みでの保存。スマホの確認画面とPCの書く画面で使う。
 import { useEffect, useState } from "react";
-import { preprocess, saveRevision } from "./api";
+import { ApiError, preprocess, saveRevision } from "./api";
 import { countMorae, toHiragana } from "./mora";
 import type { Orthography, PreprocessResponse, Style } from "./types";
 
 export interface ReadingState {
   result: PreprocessResponse | null;
   error: string | null;
+  /** 短歌として読み取れない入力（API の 422）。チェックをしないので保存もできない */
+  unreadable: boolean;
   loading: boolean;
   style: Style | undefined;
   orthography: Orthography | undefined;
@@ -35,6 +37,7 @@ export function usePreprocess(
   const [result, setResult] = useState<PreprocessResponse | null>(null);
   const [manual, setManual] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const [unreadable, setUnreadable] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -50,8 +53,15 @@ export function usePreprocess(
           if (cancelled) return;
           setResult(r);
           setError(null);
+          setUnreadable(false);
         })
-        .catch((e) => !cancelled && setError(e instanceof Error ? e.message : "読みを取得できませんでした"))
+        .catch((e) => {
+          if (cancelled) return;
+          const isUnreadable = e instanceof ApiError && e.status === 422;
+          setUnreadable(isUnreadable);
+          if (isUnreadable) setResult(null);
+          setError(e instanceof Error ? e.message : "読みを取得できませんでした");
+        })
         .finally(() => !cancelled && setLoading(false));
     }, debounceMs);
     return () => {
@@ -67,6 +77,7 @@ export function usePreprocess(
   return {
     result,
     error,
+    unreadable,
     loading,
     style,
     orthography,

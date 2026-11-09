@@ -1,4 +1,6 @@
-// 指摘されるパターン一覧。行をタップすると、定義・判定の目安・例が開く。
+// 指摘されるパターン一覧。名前と重大度だけを並べ、行をタップすると定義・判定の目安・例が開く。
+// 指摘されない例は B（語彙・表現）と D（構成・内容）だけに出す（作者独自の表現は指摘しないと伝えるため）。
+// 結果が出る時期・根拠・「直すかどうかは作者が決める」の注意書きは出さない（設計書「アンチパターン一覧と判定方式」）。
 // URL の #コード（例：/patterns#B1）で来たときは、そのパターンを開いて表示する。
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
@@ -12,14 +14,8 @@ function Chevron({ open }: { open: boolean }) {
   );
 }
 
-function KindBadge({ phase }: { phase: PatternInfo["phase"] }) {
-  const sync = phase === "sync";
-  return (
-    <span style={{ fontSize: 11, padding: "1px 6px", borderRadius: 999, flex: "none", border: `1px solid ${sync ? "var(--accent)" : "var(--neutral-line)"}`, color: sync ? "var(--accent)" : "var(--muted)" }}>
-      {sync ? "即時" : "後から"}
-    </span>
-  );
-}
+/** 指摘されない例を出すカテゴリ。 */
+const SHOW_NEGATIVE = new Set(["B", "D"]);
 
 export function PatternList({ wide = false }: { wide?: boolean }) {
   const location = useLocation();
@@ -58,7 +54,6 @@ export function PatternList({ wide = false }: { wide?: boolean }) {
                     <button type="button" className="pattern-row" aria-expanded={isOpen} aria-controls={`pattern-body-${p.code}`} onClick={() => toggle(p.code)}>
                       <span className="small muted" style={{ width: 26, flex: "none", fontVariantNumeric: "tabular-nums", textAlign: "left" }}>{p.code}</span>
                       <span style={{ flexGrow: 1, fontSize: 14, textAlign: "left" }}>{p.name}</span>
-                      <KindBadge phase={p.phase} />
                       <span className={`sev ${p.severity}`} style={{ width: 22, textAlign: "center", padding: "1px 0", flex: "none" }}>{SEVERITY_LABEL[p.severity]}</span>
                       <Chevron open={isOpen} />
                     </button>
@@ -89,7 +84,7 @@ function PatternDetail({ id, pattern: p }: { id: string; pattern: PatternInfo })
             </dd>
           </>
         )}
-        {p.negative.length > 0 && (
+        {SHOW_NEGATIVE.has(p.category) && p.negative.length > 0 && (
           <>
             <dt>指摘されない例</dt>
             <dd>
@@ -97,21 +92,9 @@ function PatternDetail({ id, pattern: p }: { id: string; pattern: PatternInfo })
             </dd>
           </>
         )}
-        <dt>結果が出る時</dt>
-        <dd>
-          {p.phase === "sync" ? "保存と同時（即時）。音数や文字の並びから機械的に確かめます。" : "保存後30秒ほど（後から）。意味を読んで判定します。"}
-          {p.requiresParent && " 2稿目から、前の稿と比べて判定します。"}
-        </dd>
         <dt>重大度</dt>
         <dd>{p.severityNote ?? `「${SEVERITY_LABEL[p.severity]}」`}</dd>
-        {p.source && (
-          <>
-            <dt>根拠</dt>
-            <dd>{p.source}</dd>
-          </>
-        )}
       </dl>
-      <p className="small muted" style={{ margin: 0 }}>当てはまっても、直すかどうかはあなたが決めます。意図して使っている場合は「意図的」にしておけます。</p>
     </div>
   );
 }

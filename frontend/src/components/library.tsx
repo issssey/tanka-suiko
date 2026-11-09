@@ -3,9 +3,9 @@ import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, typ
 import { Link, useNavigate } from "react-router-dom";
 import { createSequence, updateSequence } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { useRevision, useSequences, useTankas } from "../lib/data";
-import { kanjiNumber, sequenceTitle } from "../lib/publishing";
-import type { Sequence, Tanka } from "../lib/types";
+import { usePublications, useRevision, useSequences, useTankas } from "../lib/data";
+import { kanjiNumber, sequenceTitle, tankaPublicationChip, tankaSequenceChip } from "../lib/publishing";
+import type { Publication, Sequence, Tanka } from "../lib/types";
 import { formatDate } from "./ui";
 
 type Item = Sequence["items"][number];
@@ -44,14 +44,19 @@ export function LibraryTabs({ active, pc }: { active: "tankas" | "sequences" | "
   );
 }
 
-/** 一覧のカードに出す「発表済み」「連作 N」。記録から自動で表示し、別のフラグは持たない。 */
-export function PublishedChips({ tanka }: { tanka: Tanka }) {
-  const seqs = tanka.sequenceIds?.length ?? 0;
+/**
+ * 一覧のカードに出す「発表：みなと新聞 歌壇」「連作：駅の灯」（複数なら新しいもの1件に「ほか N件」）。
+ * 記録と連作から自動で表示し、別のフラグは持たない。どちらもなければ何も出さない。
+ */
+export function PublishedChips({ tanka, pubs, sequences }: { tanka: Tanka; pubs: Publication[]; sequences: Sequence[] }) {
+  const published = tankaPublicationChip(tanka, pubs);
+  const inSequence = tankaSequenceChip(tanka, sequences);
+  if (!published && !inSequence) return null;
   return (
-    <>
-      {(tanka.publishedCount ?? 0) > 0 && <span className="chip outline-accent">発表済み</span>}
-      {seqs > 0 && <span className="chip outline">連作</span>}
-    </>
+    <span className="chips">
+      {published && <span className="chip outline">{published}</span>}
+      {inSequence && <span className="chip outline">{inSequence}</span>}
+    </span>
   );
 }
 
@@ -106,6 +111,7 @@ export function TankaPickerSheet({
 }) {
   const { user } = useAuth();
   const { data: tankas } = useTankas(user?.uid);
+  const { data: pubs } = usePublications(user?.uid);
   const list = tankas.filter((t) => t.currentRevisionId);
   return (
     <Sheet title={purpose === "sequence" ? "歌を加える" : "出した歌を選ぶ"} onClose={onClose}>
@@ -121,7 +127,8 @@ export function TankaPickerSheet({
               <span className="poem">{t.latestBody}</span>
               <span style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                 <span className="small muted">第{t.latestRevisionNo}稿{exclude.includes(t.id) && " · この連作に入っています"}</span>
-                {(t.publishedCount ?? 0) > 0 && <span className="chip outline-accent">発表済み</span>}
+                {/* 選ぶ時点で、出したことがあるかを見せる */}
+                {tankaPublicationChip(t, pubs) && <span className="chip outline">{tankaPublicationChip(t, pubs)}</span>}
               </span>
             </button>
           </li>

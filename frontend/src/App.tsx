@@ -49,7 +49,7 @@ function Screens() {
   return (
     <div className={wide ? "app wide" : "app"}>
       <Routes>
-        <Route path="/login" element={pick(<LoginPage />, <div className="pc-center"><div style={{ maxWidth: 480 }}><LoginPage /></div></div>)} />
+        <Route path="/login" element={pick(<LoginPage />, <LoginPage pc />)} />
         <Route path="/" element={auth(pick(<ListPage />, <PcHome />))} />
         <Route path="/new" element={auth(pick(<NewTankaPage />, <PcWrite key="new" />))} />
         <Route path="/t/:tankaId/edit" element={auth(pick(<EditPage />, <PcWrite />))} />

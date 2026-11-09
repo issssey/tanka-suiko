@@ -4,10 +4,10 @@ import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { useRevision, useRevisions, useSequencePublications, useSequences, useTankaPublications } from "../lib/data";
-import { formatDay, publicationChanged, publishedRevisionNo, sequenceTitle } from "../lib/publishing";
+import { formatDay, publicationChanged, publicationSummary, publishedRevisionNo, sequenceTitle } from "../lib/publishing";
 import type { Publication, Revision, Sequence, Tanka } from "../lib/types";
 import { AddToSequenceSheet } from "./library";
-import { formatDate } from "./ui";
+import { ConfirmDialog, formatDate } from "./ui";
 
 /** 区画（見出し付き）。 */
 export function DetailSection({ title, children }: { title: string; children: ReactNode }) {
@@ -56,12 +56,44 @@ export function InfoRows({ rows }: { rows: [string, string][] }) {
 }
 
 /** いちばん下の削除。 */
-export function DangerFooter({ label, note, onClick }: { label: string; note: string; onClick: () => void }) {
+/** いちばん下の削除。消えるものと残るものは確認のポップアップでだけ伝え、ここには注記を付けない。 */
+export function DangerFooter({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <div className="detail-danger">
       <button type="button" onClick={onClick}>{label}</button>
-      <p>{note}</p>
     </div>
+  );
+}
+
+/** 連作の削除の確認。題と歌の数、消えるもの・残るもの。 */
+export function DeleteSequenceDialog({ title, count, busy, onConfirm, onCancel }: { title: string; count: number; busy?: boolean; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <ConfirmDialog title="この連作を削除しますか？" confirmLabel="連作を削除する" busy={busy} onConfirm={onConfirm} onCancel={onCancel}>
+      <p className="quote plain"><strong>{sequenceTitle({ title })}</strong> · {count}首</p>
+      <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8 }}>
+        連作の題と歌の並びが削除されます。<strong>削除すると元に戻せません。</strong>
+      </p>
+      <p className="small muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.7 }}>
+        {count > 0 ? `中の短歌（${count}首）と、この連作を出した発表記録は消えません。` : "この連作を出した発表記録は消えません。"}
+      </p>
+    </ConfirmDialog>
+  );
+}
+
+/** 発表記録の削除の確認。出し先・出した日・中身、消えるもの・残るもの。 */
+export function DeletePublicationDialog({ pub, busy, onConfirm, onCancel }: { pub: Publication; busy?: boolean; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <ConfirmDialog title="この記録を削除しますか？" confirmLabel="記録を削除する" busy={busy} onConfirm={onConfirm} onCancel={onCancel}>
+      <p className="quote plain">
+        <strong>{pub.destination}</strong> · {formatDay(pub.submittedOn, "short")}
+        <br />
+        {publicationSummary(pub)}
+      </p>
+      <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8 }}>
+        出し先・出した日・メモと、出したときの本文の写しが削除されます。<strong>削除すると元に戻せません。</strong>
+      </p>
+      <p className="small muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.7 }}>短歌と連作は消えません。</p>
+    </ConfirmDialog>
   );
 }
 

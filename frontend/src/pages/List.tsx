@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
-import { useTankas } from "../lib/data";
-import type { Tanka } from "../lib/types";
+import { usePublications, useSequences, useTankas } from "../lib/data";
+import type { Publication, Sequence, Tanka } from "../lib/types";
 import { formatDate, GearIcon, Loading, PlusIcon } from "../components/ui";
 import { LibraryTabs, PublishedChips } from "../components/library";
 import { LibraryHeader } from "./Sequences";
@@ -9,6 +9,8 @@ import { LibraryHeader } from "./Sequences";
 export default function ListPage() {
   const { user } = useAuth();
   const { data: tankas, loading, error } = useTankas(user?.uid);
+  const { data: pubs } = usePublications(user?.uid);
+  const { data: sequences } = useSequences(user?.uid);
   const withRevision = tankas.filter((t) => t.currentRevisionId);
 
   if (loading) return <Loading />;
@@ -22,7 +24,7 @@ export default function ListPage() {
       <p className="muted" style={{ margin: 0, padding: "0 20px 12px", fontSize: 13 }}>{withRevision.length}首 · 最近推敲した順</p>
       <div className="stack" style={{ paddingBottom: 120 }}>
         {withRevision.map((t) => (
-          <TankaCard key={t.id} tanka={t} />
+          <TankaCard key={t.id} tanka={t} pubs={pubs} sequences={sequences} />
         ))}
       </div>
       <Link to="/new" className="fab">
@@ -33,18 +35,13 @@ export default function ListPage() {
   );
 }
 
-/** 短歌のカード。本文（2行まで）・稿と日時・発表済み／連作。 */
-function TankaCard({ tanka }: { tanka: Tanka }) {
-  const seqs = tanka.sequenceIds?.length ?? 0;
+/** 短歌のカード。本文（2行まで）・稿と日時・「発表：出し先」「連作：題」。 */
+function TankaCard({ tanka, pubs, sequences }: { tanka: Tanka; pubs: Publication[]; sequences: Sequence[] }) {
   return (
     <Link to={`/t/${tanka.id}/r/${tanka.currentRevisionId}`} className="card tanka-card">
       <p className="poem-clamp">{tanka.latestBody}</p>
       <span className="card-meta">第{tanka.latestRevisionNo}稿 · {formatDate(tanka.updatedAt)}</span>
-      {((tanka.publishedCount ?? 0) > 0 || seqs > 0) && (
-        <div className="chips">
-          <PublishedChips tanka={tanka} />
-        </div>
-      )}
+      <PublishedChips tanka={tanka} pubs={pubs} sequences={sequences} />
     </Link>
   );
 }

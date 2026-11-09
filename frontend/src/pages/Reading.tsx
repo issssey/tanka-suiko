@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { preprocess, saveRevision } from "../lib/api";
+import { ApiError, preprocess, saveRevision } from "../lib/api";
 import { useTanka } from "../lib/data";
 import { clearDraft, loadDraft, saveDraft } from "../lib/draft";
 import { segLabel } from "../lib/findings";
 import { countMorae, toHiragana } from "../lib/mora";
 import type { Orthography, PreprocessResponse, Style } from "../lib/types";
-import { Loading, TopBar } from "../components/ui";
+import { Loading, TopBar, UnreadableHelp } from "../components/ui";
 
 const KANSUJI = ["", "一", "二", "三", "四", "五"];
 
@@ -22,15 +22,24 @@ export default function ReadingPage() {
   // 作者が手で直した読み（句の本文が変わらない限り残す）
   const [manual, setManual] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  // 短歌として読み取れない入力（422）。チェックをしないので、理由と基準を出す
+  const [unreadable, setUnreadable] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!draft) return;
     let cancelled = false;
     setError(null);
+    setUnreadable(false);
     preprocess(tankaId, draft.body, { style, orthography: orth, readingOverrides: overrides })
       .then((r) => !cancelled && setResult(r))
-      .catch((e) => !cancelled && setError(e instanceof Error ? e.message : "読みを取得できませんでした"));
+      .catch((e) => {
+        if (cancelled) return;
+        const isUnreadable = e instanceof ApiError && e.status === 422;
+        setUnreadable(isUnreadable);
+        if (isUnreadable) setResult(null);
+        setError(e instanceof Error ? e.message : "読みを取得できませんでした");
+      });
     return () => {
       cancelled = true;
     };
@@ -93,7 +102,8 @@ export default function ReadingPage() {
     <>
       <TopBar back={backHref} backLabel="本文の編集に戻る" title="読みと句分けの確認" sub={sub} />
       {!result && !error && <Loading />}
-      {error && <p className="error">{error}</p>}
+      {error && <p role="alert" className="error">{error}</p>}
+      {unreadable && <UnreadableHelp style={{ margin: "20px 20px 0" }} />}
       {result && (
         <>
           <div style={{ display: "flex", gap: 8, padding: "4px 20px 12px", flexWrap: "wrap", alignItems: "center" }}>

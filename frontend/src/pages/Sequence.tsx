@@ -2,9 +2,9 @@
 // 区画は 見出しと情報 → 中身（題と歌の並び）→ つながり → 履歴 → 操作 → 削除（設計書「詳細ページの構造」）
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { DangerFooter, DetailSection, InfoRows, SequenceRelations, UndoBar } from "../components/detail";
+import { DangerFooter, DeleteSequenceDialog, DetailSection, InfoRows, SequenceRelations, UndoBar } from "../components/detail";
 import { SaveStatus, SequenceItems, TankaPickerSheet } from "../components/library";
-import { ConfirmDialog, formatDate, Loading, PlusIcon, TopBar } from "../components/ui";
+import { formatDate, Loading, PlusIcon, TopBar } from "../components/ui";
 import { useSequence } from "../lib/data";
 import { sequenceTitle } from "../lib/publishing";
 import { useSequenceEditor } from "../lib/sequenceEditor";
@@ -52,7 +52,7 @@ function SequenceEditor({ seqId }: { seqId: string }) {
           )}
         </div>
       </DetailSection>
-      <DangerFooter label="この連作を削除" note="中の短歌と発表記録は消えません" onClick={() => setConfirmDelete(true)} />
+      <DangerFooter label="この連作を削除" onClick={() => setConfirmDelete(true)} />
 
       {ed.undo && <UndoBar tanka={ed.tankasById.get(ed.undo.removed.tankaId)} onUndo={ed.undoRemove} />}
       {adding && (
@@ -66,10 +66,7 @@ function SequenceEditor({ seqId }: { seqId: string }) {
         />
       )}
       {confirmDelete && (
-        <ConfirmDialog title="この連作を削除しますか？" confirmLabel="連作を削除する" busy={ed.busy === "delete"} onConfirm={ed.remove} onCancel={() => setConfirmDelete(false)}>
-          <p className="quote">{sequenceTitle({ title: ed.title })}</p>
-          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8 }}>中の短歌と発表記録は消えません。</p>
-        </ConfirmDialog>
+        <DeleteSequenceDialog title={ed.title} count={ed.items.length} busy={ed.busy === "delete"} onConfirm={ed.remove} onCancel={() => setConfirmDelete(false)} />
       )}
     </>
   );

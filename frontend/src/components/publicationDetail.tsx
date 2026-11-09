@@ -6,8 +6,8 @@ import { deletePublication } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { usePublication, useTankas } from "../lib/data";
 import { formatDay, kanjiNumber, publicationSummary } from "../lib/publishing";
-import { DangerFooter, DetailSection, PublicationHistory, PublicationRelations, PublishedItem } from "./detail";
-import { ConfirmDialog, Loading, TopBar } from "./ui";
+import { DangerFooter, DeletePublicationDialog, DetailSection, PublicationHistory, PublicationRelations, PublishedItem } from "./detail";
+import { Loading, TopBar } from "./ui";
 
 export function PublicationDetail() {
   const { publicationId = "" } = useParams();
@@ -61,13 +61,10 @@ export function PublicationDetail() {
       {error && <p className="error">{error}</p>}
       <DangerFooter
         label="この記録を削除"
-        note="直せるのは出し先・出した日・メモです。出したものを間違えたときは、記録を削除して記録し直してください"
         onClick={() => setConfirmDelete(true)}
       />
       {confirmDelete && (
-        <ConfirmDialog title="この記録を削除しますか？" confirmLabel="記録を削除する" busy={busy} onConfirm={remove} onCancel={() => setConfirmDelete(false)}>
-          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8 }}>短歌と連作は消えません。</p>
-        </ConfirmDialog>
+        <DeletePublicationDialog pub={pub} busy={busy} onConfirm={remove} onCancel={() => setConfirmDelete(false)} />
       )}
     </>
   );

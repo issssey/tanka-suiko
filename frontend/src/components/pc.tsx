@@ -2,9 +2,9 @@
 import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../lib/auth";
-import { useTankas } from "../lib/data";
+import { usePublications, useSequences, useTankas } from "../lib/data";
 import type { Finding, Segment, Severity } from "../lib/types";
-import { formatDate, PlusIcon } from "./ui";
+import { formatDate, GearIcon, PlusIcon } from "./ui";
 import { PublishedChips } from "./library";
 
 export function ListIcon() {
@@ -23,11 +23,12 @@ function sectionOf(pathname: string): "tankas" | "sequences" | "publications" | 
   return "tankas";
 }
 
-/** PC版のヘッダー。短歌・連作・発表記録・設定を切り替える。 */
+/**
+ * PC版のヘッダー。短歌・連作・発表記録・設定を切り替える。
+ * 設定はいちばん右の歯車に「設定」の文字を添える。アカウント用のアイコンは置かない（ログイン中のアカウントは設定で確かめる）。
+ */
 export function PcHeader() {
-  const { user } = useAuth();
   const { pathname } = useLocation();
-  const initial = (user?.displayName || user?.email || "歌").slice(0, 1);
   const current = sectionOf(pathname);
   const links = [
     { key: "tankas", to: "/", label: "短歌" },
@@ -41,10 +42,10 @@ export function PcHeader() {
       <nav aria-label="アカウント" className="pc-nav">
         {links.map((l) => (
           <Link key={l.key} to={l.to} aria-current={current === l.key ? "page" : undefined} className={l.key === "settings" ? "settings" : undefined}>
+            {l.key === "settings" && <GearIcon size={18} strokeWidth={1.8} />}
             {l.label}
           </Link>
         ))}
-        <span aria-hidden="true" className="pc-avatar">{initial}</span>
       </nav>
     </header>
   );
@@ -85,6 +86,8 @@ export function PcShell({ activeTankaId, children, aside, asideLabel }: { active
 function PcSidebar({ activeTankaId }: { activeTankaId?: string }) {
   const { user } = useAuth();
   const { data: tankas, loading } = useTankas(user?.uid);
+  const { data: pubs } = usePublications(user?.uid);
+  const { data: sequences } = useSequences(user?.uid);
   const [q, setQ] = useState("");
   const list = tankas.filter((t) => t.currentRevisionId);
   const shown = q.trim() ? list.filter((t) => (t.latestBody ?? "").includes(q.trim())) : list;
@@ -110,11 +113,7 @@ function PcSidebar({ activeTankaId }: { activeTankaId?: string }) {
             >
               <span className="serif pc-tanka-line">{t.latestBody}</span>
               <span className="small">第{t.latestRevisionNo}稿 · {formatDate(t.updatedAt)}</span>
-              {((t.publishedCount ?? 0) > 0 || (t.sequenceIds?.length ?? 0) > 0) && (
-                <span className="chips">
-                  <PublishedChips tanka={t} />
-                </span>
-              )}
+              <PublishedChips tanka={t} pubs={pubs} sequences={sequences} />
             </Link>
           ))}
       </nav>

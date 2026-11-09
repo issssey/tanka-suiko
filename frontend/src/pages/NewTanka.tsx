@@ -38,7 +38,7 @@ export default function NewTankaPage() {
       <div style={{ display: "flex", flexDirection: "column", gap: 20, paddingTop: 8 }}>
         <div className="field">
           <label htmlFor="body">本文</label>
-          <textarea id="body" maxLength={80} className="textarea serif" value={body} onChange={(e) => setBody(e.target.value)} placeholder="一首を書いてください" />
+          <textarea id="body" maxLength={80} className="textarea serif" value={body} onChange={(e) => setBody(e.target.value)} placeholder="ここに一首を書く" />
           <p className="hint">スペースや改行で句の区切りを示せます（なくても自動で分けます）</p>
           <p className="hint">文語・旧仮名の歌も書けます。次の画面で、口語か文語か、新仮名か旧仮名かを自動で判定します。違っていれば直せます。</p>
         </div>

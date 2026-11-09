@@ -3,11 +3,11 @@ import { useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { PcHeader, SideSearch } from "../../components/pc";
 import { SaveStatus, SequenceItems, TankaPickerSheet } from "../../components/library";
-import { DangerFooter, DetailSection, InfoRows, SequenceRelations, UndoBar } from "../../components/detail";
-import { ConfirmDialog, formatDate, Loading, PlusIcon } from "../../components/ui";
+import { DangerFooter, DeleteSequenceDialog, DetailSection, InfoRows, SequenceRelations, UndoBar } from "../../components/detail";
+import { formatDate, Loading, PlusIcon } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { usePublications, useRevision, useSequence, useSequences, useTankas } from "../../lib/data";
-import { sequenceTitle, staleCount } from "../../lib/publishing";
+import { sequencePublicationChip, sequenceTitle, staleCount } from "../../lib/publishing";
 import { useCreateSequence, useSequenceEditor } from "../../lib/sequenceEditor";
 
 export default function PcSequences() {
@@ -38,7 +38,7 @@ export default function PcSequences() {
           <nav aria-label="連作一覧" className="pc-seq-list">
             {shown.map((s) => {
               const stale = staleCount(s, tankasById);
-              const published = pubs.some((p) => p.sequenceId === s.id);
+              const published = sequencePublicationChip(s, pubs);
               return (
                 <Link key={s.id} to={`/sequences/${s.id}`} aria-current={s.id === sequenceId ? "page" : undefined}>
                   <span className="t">{sequenceTitle(s)}</span>
@@ -47,7 +47,7 @@ export default function PcSequences() {
                   {(stale > 0 || published) && (
                     <span className="chips">
                       {stale > 0 && <span className="chip stale">新しい稿あり</span>}
-                      {published && <span className="chip outline">発表済み</span>}
+                      {published && <span className="chip outline">{published}</span>}
                     </span>
                   )}
                 </Link>
@@ -110,7 +110,7 @@ function PcSequenceEditor({ sequenceId }: { sequenceId: string }) {
           )}
         </div>
       </DetailSection>
-      <DangerFooter label="この連作を削除" note="中の短歌と発表記録は消えません" onClick={() => setConfirmDelete(true)} />
+      <DangerFooter label="この連作を削除" onClick={() => setConfirmDelete(true)} />
       {ed.undo && <UndoBar tanka={ed.tankasById.get(ed.undo.removed.tankaId)} onUndo={ed.undoRemove} />}
       {adding && (
         <TankaPickerSheet
@@ -123,10 +123,7 @@ function PcSequenceEditor({ sequenceId }: { sequenceId: string }) {
         />
       )}
       {confirmDelete && (
-        <ConfirmDialog title="この連作を削除しますか？" confirmLabel="連作を削除する" busy={ed.busy === "delete"} onConfirm={ed.remove} onCancel={() => setConfirmDelete(false)}>
-          <p className="quote">{ed.title.trim() || "無題の連作"}</p>
-          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8 }}>中の短歌と発表記録は消えません。</p>
-        </ConfirmDialog>
+        <DeleteSequenceDialog title={ed.title} count={ed.items.length} busy={ed.busy === "delete"} onConfirm={ed.remove} onCancel={() => setConfirmDelete(false)} />
       )}
     </>
   );

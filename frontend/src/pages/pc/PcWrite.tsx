@@ -8,6 +8,7 @@ import { countMorae, toHiragana } from "../../lib/mora";
 import { loadSettings } from "../../lib/settings";
 import { saveWithReadings, usePreprocess } from "../../lib/usePreprocess";
 import { PcShell } from "../../components/pc";
+import { UnreadableHelp } from "../../components/ui";
 
 const KANSUJI = ["", "一", "二", "三", "四", "五"];
 
@@ -105,7 +106,8 @@ export default function PcWrite() {
           {reading.loading ? "読みを確かめています…" : <>本文を書くと、ここに<br />五句それぞれの読みとモーラ数が出ます</>}
         </p>
       )}
-      {reading.error && <p className="error" style={{ margin: 0 }}>{reading.error}</p>}
+      {reading.error && <p role="alert" className="error" style={{ margin: 0 }}>{reading.error}</p>}
+      {reading.unreadable && <UnreadableHelp />}
       {r && (
         <>
           <ol className="pc-reading" aria-busy={reading.loading}>
@@ -182,7 +184,7 @@ export default function PcWrite() {
         )}
         <div className="field" style={{ padding: 0 }}>
           <label htmlFor="pc-body" style={{ fontSize: 14, color: "var(--text)" }}>本文</label>
-          <textarea id="pc-body" maxLength={80} className="textarea serif" rows={4} value={body} onChange={(e) => setBody(e.target.value)} placeholder="一首を書いてください" />
+          <textarea id="pc-body" maxLength={80} className="textarea serif" rows={4} value={body} onChange={(e) => setBody(e.target.value)} placeholder="ここに一首を書く" />
           <p className="hint">
             {isNew
               ? "スペースや改行で句の区切りを示せます（なくても自動で分けます）。文語・旧仮名の歌も書けます。"

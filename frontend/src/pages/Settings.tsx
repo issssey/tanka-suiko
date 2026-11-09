@@ -4,6 +4,7 @@ import { useAccountActions } from "../lib/account";
 import { logout, useAuth } from "../lib/auth";
 import { useSettings, type Settings } from "../lib/settings";
 import { ConfirmDialog, TopBar } from "../components/ui";
+import { DeleteAccountText, EXPORT_NOTE } from "../components/account";
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -80,22 +81,11 @@ export default function SettingsPage() {
       </div>
 
       <h2 className="group-title">データ</h2>
-      <div className="card" style={{ margin: "0 16px 32px", padding: "4px 16px" }}>
-        <div className="toggle-row">
-          <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <span style={{ fontSize: 14 }}>すべての短歌を書き出す</span>
-            <span className="small muted">すべての稿をJSONファイルで保存します</span>
-          </span>
-          <button type="button" className="pill" disabled={busy !== null} onClick={exportAll}>書き出す</button>
-        </div>
-        <div className="toggle-row">
-          <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <span style={{ fontSize: 14, color: "var(--high)" }}>アカウントを削除</span>
-            <span className="small muted">すべての短歌とログイン情報を削除します</span>
-          </span>
-          <button type="button" className="pill" style={{ color: "var(--high)", borderColor: "var(--high)" }} disabled={busy !== null} onClick={() => setConfirm(true)}>削除</button>
-        </div>
+      <div className="card" style={{ margin: "0 16px", padding: 0, overflow: "hidden" }}>
+        <button type="button" className="list-btn" disabled={busy !== null} onClick={exportAll}>すべてのデータを書き出す</button>
+        <button type="button" className="list-btn danger" disabled={busy !== null} onClick={() => setConfirm(true)}>アカウントを削除</button>
       </div>
+      <p className="small muted" style={{ margin: "8px 20px 32px", lineHeight: 1.7 }}>{EXPORT_NOTE}</p>
       {error && <p className="error" style={{ marginBottom: 32 }}>{error}</p>}
       {confirm && (
         <ConfirmDialog
@@ -105,10 +95,7 @@ export default function SettingsPage() {
           onConfirm={removeAccount}
           onCancel={() => setConfirm(false)}
         >
-          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8 }}>
-            すべての短歌と稿、チェック結果、「意図的」「誤検出」にした指摘、ログイン情報が削除されます。
-            <strong>削除すると元に戻せません。</strong>必要なら、先に「すべての短歌を書き出す」で保存してください。
-          </p>
+          <DeleteAccountText />
         </ConfirmDialog>
       )}
     </>

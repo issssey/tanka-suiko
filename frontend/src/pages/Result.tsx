@@ -208,7 +208,7 @@ export default function ResultPage() {
       {tanka && (
         <TankaActions tanka={tanka} rev={rev} onRestore={!isLatest ? () => setConfirmRestore(true) : undefined} restoring={busy === "restore"} />
       )}
-      <DangerFooter label="この短歌を削除" note="すべての稿とチェック結果が消えます。発表記録は残ります" onClick={() => setConfirmDelete(true)} />
+      <DangerFooter label="この短歌を削除" onClick={() => setConfirmDelete(true)} />
       {confirmRestore && (
         <RestoreDialog
           revisionNo={rev.revisionNo}

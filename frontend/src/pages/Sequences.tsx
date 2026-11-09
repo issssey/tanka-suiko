@@ -2,10 +2,10 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { LibraryTabs } from "../components/library";
-import { GearIcon, Loading, PlusIcon } from "../components/ui";
+import { formatDate, GearIcon, Loading, PlusIcon } from "../components/ui";
 import { useAuth } from "../lib/auth";
 import { usePublications, useRevision, useSequences, useTankas } from "../lib/data";
-import { sequenceTitle, staleCount } from "../lib/publishing";
+import { sequencePublicationChip, sequenceTitle, staleCount } from "../lib/publishing";
 import { useCreateSequence } from "../lib/sequenceEditor";
 import type { Sequence, Tanka } from "../lib/types";
 
@@ -46,7 +46,7 @@ export default function SequencesPage() {
           <p className="muted" style={{ margin: 0, padding: "0 20px 12px", fontSize: 13 }}>{sequences.length}つ · 最近更新した順</p>
           <div className="stack" style={{ paddingBottom: 120 }}>
             {sequences.map((s) => (
-              <SequenceCard key={s.id} seq={s} tankasById={tankasById} published={pubs.some((p) => p.sequenceId === s.id)} />
+              <SequenceCard key={s.id} seq={s} tankasById={tankasById} published={sequencePublicationChip(s, pubs)} />
             ))}
           </div>
         </>
@@ -60,8 +60,8 @@ export default function SequencesPage() {
   );
 }
 
-/** 連作のカード。題・一首目の本文（2行まで）・新しい稿あり／発表済み。 */
-function SequenceCard({ seq, tankasById, published }: { seq: Sequence; tankasById: Map<string, Tanka>; published: boolean }) {
+/** 連作のカード。題・一首目の本文（2行まで）・歌の数と日時・新しい稿あり／「発表：出し先」。 */
+function SequenceCard({ seq, tankasById, published }: { seq: Sequence; tankasById: Map<string, Tanka>; published: string | null }) {
   const first = seq.items[0];
   const { data: rev } = useRevision(first?.tankaId, first?.revisionId);
   const stale = staleCount(seq, tankasById);
@@ -69,10 +69,11 @@ function SequenceCard({ seq, tankasById, published }: { seq: Sequence; tankasByI
     <Link to={`/sequences/${seq.id}`} className="card tanka-card compact">
       <span className="title">{sequenceTitle(seq)}</span>
       {first ? <p className="poem-clamp">{rev?.bodyNormalized ?? ""}</p> : <span className="card-meta">まだ歌が入っていません</span>}
+      {first && <span className="card-meta">{seq.items.length}首 · {formatDate(seq.updatedAt)}</span>}
       {(stale > 0 || published) && (
         <div className="chips">
           {stale > 0 && <span className="chip stale">新しい稿あり</span>}
-          {published && <span className="chip outline">発表済み</span>}
+          {published && <span className="chip outline">{published}</span>}
         </div>
       )}
     </Link>

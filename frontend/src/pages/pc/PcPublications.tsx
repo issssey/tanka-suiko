@@ -3,8 +3,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { PcHeader, SideSearch } from "../../components/pc";
 import { PublishForm } from "../../components/publish";
-import { DangerFooter, DetailSection, PublicationHistory, PublicationRelations, PublishedItem } from "../../components/detail";
-import { ConfirmDialog, formatDate, Loading, PlusIcon } from "../../components/ui";
+import { DangerFooter, DeletePublicationDialog, DetailSection, PublicationHistory, PublicationRelations, PublishedItem } from "../../components/detail";
+import { formatDate, Loading, PlusIcon } from "../../components/ui";
 import { deletePublication, updatePublication } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { usePublications, useTankas } from "../../lib/data";
@@ -198,11 +198,9 @@ function PublicationEditor({ pub }: { pub: Publication }) {
       </DetailSection>
       <PublicationRelations pub={pub} />
       <PublicationHistory pub={pub} />
-      <DangerFooter label="この記録を削除" note="短歌と連作は消えません" onClick={() => setConfirmDelete(true)} />
+      <DangerFooter label="この記録を削除" onClick={() => setConfirmDelete(true)} />
       {confirmDelete && (
-        <ConfirmDialog title="この記録を削除しますか？" confirmLabel="記録を削除する" busy={deleting} onConfirm={remove} onCancel={() => setConfirmDelete(false)}>
-          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8 }}>短歌と連作は消えません。</p>
-        </ConfirmDialog>
+        <DeletePublicationDialog pub={pub} busy={deleting} onConfirm={remove} onCancel={() => setConfirmDelete(false)} />
       )}
     </>
   );

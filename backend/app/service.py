@@ -518,7 +518,7 @@ class Service:
 
     # --- アカウント ---
     def export_user(self, user_id: str) -> dict[str, Any]:
-        """自分のすべての短歌と稿を書き出す。"""
+        """自分のすべての短歌・稿・チェック結果・作者の判断・連作・発表記録を書き出す。"""
         tankas = []
         for t in self.repo.list_tankas_by_author(user_id):
             revisions = self.repo.list_revisions(t.id)
@@ -526,9 +526,12 @@ class Service:
                 "id": t.id,
                 "createdAt": t.createdAt.isoformat(),
                 "updatedAt": t.updatedAt.isoformat(),
+                "feedback": [f.model_dump(mode="json") for f in self.repo.list_feedback(t.id)],
                 "revisions": [
                     {
+                        "id": r.id,
                         "revisionNo": r.revisionNo,
+                        "parentRevisionId": r.parentRevisionId,
                         "body": r.body,
                         "reading": r.reading,
                         "segments": [{"no": s.no, "text": s.text, "reading": s.reading, "mora": s.mora} for s in r.segments],
@@ -536,6 +539,7 @@ class Service:
                         "orthography": r.orthography,
                         "note": r.note,
                         "createdAt": r.createdAt.isoformat(),
+                        "checkRuns": [c.model_dump(mode="json") for c in self.repo.list_check_runs(t.id, r.id)],
                     }
                     for r in revisions
                 ],

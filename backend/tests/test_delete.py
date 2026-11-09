@@ -123,6 +123,11 @@ def test_export_and_delete_account(service):
     assert len(data["tankas"]) == 1
     assert [x["revisionNo"] for x in data["tankas"][0]["revisions"]] == [1, 2]
     assert data["tankas"][0]["revisions"][1]["body"] == BODY2
+    # チェック結果と作者の判断も書き出す
+    runs = data["tankas"][0]["revisions"][1]["checkRuns"]
+    assert {c["phase"] for c in runs} >= {"sync"}
+    assert data["tankas"][0]["feedback"] == []
+    assert data["sequences"] == [] and data["publications"] == []
 
     deleted = []
     service.delete_account(USER, deleted.append)
