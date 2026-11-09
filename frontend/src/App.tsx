@@ -1,5 +1,5 @@
-import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
-import type { ReactNode } from "react";
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigationType, useParams } from "react-router-dom";
+import { useLayoutEffect, type ReactNode } from "react";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { useWide } from "./lib/responsive";
 import { Loading } from "./components/ui";
@@ -30,6 +30,19 @@ import PublishPage from "./pages/Publish";
 import PublicationPage from "./pages/Publication";
 import PcSequences from "./pages/pc/PcSequences";
 import PcPublications, { PcPublication, PcPublish } from "./pages/pc/PcPublications";
+
+/**
+ * 別の画面に移ったら、いちばん上から表示する（前の画面のスクロール位置のまま開くと、
+ * ホーム画面から開いたときに見出しがステータスバーの下に隠れる）。戻る（POP）はブラウザに任せる。
+ */
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  const type = useNavigationType();
+  useLayoutEffect(() => {
+    if (type !== "POP") window.scrollTo(0, 0);
+  }, [pathname, type]);
+  return null;
+}
 
 function EditToDetail() {
   const { publicationId = "" } = useParams();
@@ -82,6 +95,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <ScrollToTop />
         <Screens />
       </BrowserRouter>
     </AuthProvider>
