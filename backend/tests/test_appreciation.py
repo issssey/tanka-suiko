@@ -155,4 +155,4 @@ def test_api_limit(service, fake_llm):
     tid = c.post("/tankas", headers=AUTH).json()["tankaId"]
     rid = save(service, tid, BODY2).revision.id
     res = c.post(f"/tankas/{tid}/revisions/{rid}/appreciation", headers=AUTH)
-    assert res.status_code == 429 and res.json()["detail"] == "今日はもう頼めません"
+    assert res.status_code == 429 and res.json()["detail"] == "今日はもう鑑賞できません"

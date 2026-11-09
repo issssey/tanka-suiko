@@ -25,7 +25,7 @@ export function firstSentence(text: string | null): string {
   return i >= 0 && i < text.length - 1 ? text.slice(0, i + 1) : text;
 }
 
-/** 鑑賞を頼む操作。上限に達したら「今日はもう頼めません」。 */
+/** 鑑賞を頼む操作。上限に達したら「今日はもう鑑賞できません」。 */
 function useRequest(tankaId: string, revisionId: string) {
   const { user } = useAuth();
   const { data: today } = useAppreciationsToday(user?.uid);
@@ -39,7 +39,7 @@ function useRequest(tankaId: string, revisionId: string) {
       await requestAppreciation(tankaId, revisionId);
     } catch (e) {
       if (e instanceof ApiError && e.status === 429) setLimited(true);
-      else setError(e instanceof Error ? e.message : "頼めませんでした");
+      else setError(e instanceof Error ? e.message : "鑑賞できませんでした");
     } finally {
       setBusy(false);
     }
@@ -52,9 +52,9 @@ function RequestButton({ tankaId, revisionId, label }: { tankaId: string; revisi
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       <button type="button" className="btn-secondary" disabled={req.busy || req.limited} onClick={req.run}>
-        {req.busy ? "頼んでいます…" : label}
+        {req.busy ? "準備しています…" : label}
       </button>
-      {req.limited && <p className="small muted" style={{ margin: 0 }}>今日はもう頼めません（1日{APPRECIATION_DAILY_LIMIT}回まで）。</p>}
+      {req.limited && <p className="small muted" style={{ margin: 0 }}>今日はもう鑑賞できません（1日{APPRECIATION_DAILY_LIMIT}回まで）。</p>}
       {req.error && <p className="error" style={{ margin: 0 }}>{req.error}</p>}
     </div>
   );
@@ -76,7 +76,7 @@ function Pending({ children }: { children?: ReactNode }) {
 }
 
 /**
- * チェック結果の「鑑賞」の欄。まだなら「この稿を鑑賞してもらう」、判定中なら「鑑賞中」、
+ * チェック結果の「鑑賞」の欄。まだなら「鑑賞する」、判定中なら「鑑賞中」、
  * 済んでいれば「浮かんだ場面」の1行と鑑賞へのリンク。
  */
 export function AppreciationSection({ tankaId, rev }: { tankaId: string; rev: Revision }) {
@@ -86,8 +86,8 @@ export function AppreciationSection({ tankaId, rev }: { tankaId: string; rev: Re
   if (!a) {
     body = (
       <>
-        <p className="small muted" style={{ margin: 0, lineHeight: 1.7 }}>AIが、短歌を読み慣れた読み手を想定して、この稿がどう読めるかを返します。良し悪しは判定しません。</p>
-        <RequestButton tankaId={tankaId} revisionId={rev.id} label="この稿を鑑賞してもらう" />
+        <p className="small muted" style={{ margin: 0, lineHeight: 1.7 }}>短歌を読み慣れた読み手ならどう読むかを、AIが想定して返します。実際の読み手の感想ではありません。良し悪しは判定しません。</p>
+        <RequestButton tankaId={tankaId} revisionId={rev.id} label="鑑賞する" />
       </>
     );
   } else if (a.status === "pending") {
@@ -96,7 +96,7 @@ export function AppreciationSection({ tankaId, rev }: { tankaId: string; rev: Re
     body = (
       <>
         <p className="error" style={{ margin: 0 }}>鑑賞できませんでした{a.error ? `（${a.error}）` : ""}</p>
-        <RequestButton tankaId={tankaId} revisionId={rev.id} label="もう一度頼む" />
+        <RequestButton tankaId={tankaId} revisionId={rev.id} label="もう一度鑑賞する" />
       </>
     );
   } else {
@@ -303,12 +303,12 @@ export function AppreciationNotReady({ tankaId, rev, a }: { tankaId: string; rev
       ) : a?.status === "failed" ? (
         <>
           <p className="error" style={{ margin: 0 }}>鑑賞できませんでした{a.error ? `（${a.error}）` : ""}</p>
-          <RequestButton tankaId={tankaId} revisionId={rev.id} label="もう一度頼む" />
+          <RequestButton tankaId={tankaId} revisionId={rev.id} label="もう一度鑑賞する" />
         </>
       ) : (
         <>
           <p className="muted" style={{ margin: 0, lineHeight: 1.8 }}>この稿はまだ鑑賞していません。</p>
-          <RequestButton tankaId={tankaId} revisionId={rev.id} label="この稿を鑑賞してもらう" />
+          <RequestButton tankaId={tankaId} revisionId={rev.id} label="鑑賞する" />
         </>
       )}
     </div>
