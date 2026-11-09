@@ -26,6 +26,12 @@
 /* iPhone の Safari は、ノッチ部分や下のバーの色を html・body の背景から取る。
    スマホでは画面の地の色と同じにし、灰色の余白はスマホ版を中央に置く中間の幅だけで使う */
 html, body { margin: 0; background: var(--bg); }
+/* ホーム画面から全画面で開くと、ステータスバー（時刻・電池）が画面の上に重なって乗る（viewport-fit=cover）。
+   スクロールした本文が透けて重ならないよう、上の safe-area に地の色の帯を固定して置く。ブラウザでは高さ0 */
+body::before {
+  content: ""; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top);
+  background: var(--bg); z-index: 45; pointer-events: none;
+}
 body {
   font-family: var(--sans);
   color: var(--text);
@@ -242,7 +248,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 20px; height: 20px;
 /* ===== PC版（幅 1024px 以上） ===== */
 .app.wide { max-width: none; background: var(--bg); }
 .pc { min-height: 100dvh; display: flex; flex-direction: column; background: var(--bg); }
-.pc-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 24px; height: 60px; border-bottom: 1px solid var(--line); background: var(--surface); position: sticky; top: 0; z-index: 10; }
+.pc-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 24px; height: 60px; border-bottom: 1px solid var(--line); background: var(--surface); position: sticky; top: env(safe-area-inset-top); z-index: 10; }
 .pc-logo { font-family: var(--serif); font-size: 20px; font-weight: 600; letter-spacing: 0.1em; color: var(--text); text-decoration: none; }
 .pc-logo:hover { color: var(--text); }
 .pc-nav { display: flex; align-items: center; gap: 8px; }
