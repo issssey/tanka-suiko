@@ -26,6 +26,7 @@ prd のプロジェクトには `release` からしか入れない（`deploy/set
 3. プロジェクトの設定 > マイアプリ で、ウェブアプリを登録する。表示される `apiKey` と `appId` を控える
 4. Authentication > ログイン方法 で「Google」だけを有効にする（メール/パスワードなどほかの方法は無効のままにする）
 5. 独自ドメインを使う場合は、Authentication > 設定 > 承認済みドメイン に追加する
+6. Google Cloud コンソールの「APIとサービス > 認証情報」で、Firebase が作った OAuth クライアント（Web client (auto created by Google Service)）の「承認済みのリダイレクト URI」に `https://<プロジェクトID>.web.app/__/auth/handler` を足す（独自ドメインならそのドメインの `/__/auth/handler`）。authDomain を画面と同じドメインにしているため。足さないと Google ログインが `redirect_uri_mismatch` で失敗する
 
 ### 2. 初期設定スクリプト（Cloud Shell で、プロジェクトのオーナーが実行）
 
@@ -68,7 +69,7 @@ Secret Manager、GitHub 連携をまとめて作る。何度実行してもよ�
 | `GCP_DEPLOYER_SA` | 同上 |
 | `FIREBASE_API_KEY` | Firebase のウェブアプリの `apiKey` |
 | `FIREBASE_APP_ID` | Firebase のウェブアプリの `appId` |
-| `FIREBASE_AUTH_DOMAIN` | 任意。既定は `<プロジェクトID>.firebaseapp.com` |
+| `FIREBASE_AUTH_DOMAIN` | 任意。既定は `<プロジェクトID>.web.app`（画面と同じドメイン。ホーム画面から開いてもGoogleログインから戻れるように）。独自ドメインで公開するならそのドメインにする |
 | `LLM_PROVIDER` | `anthropic` か `vertex`（`none` にするとLLMの判定をしない） |
 | `LLM_MODEL` | 任意。既定は `claude-sonnet-5-5` |
 | `LLM_EFFORT` | 任意。`low` / `medium` / `high` |

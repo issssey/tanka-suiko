@@ -1,6 +1,6 @@
 // ログインは Google アカウントだけ（メールアドレスなどの個人情報をこちらで集めない）
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, type User } from "firebase/auth";
+import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut, type User } from "firebase/auth";
 import { auth } from "./firebase";
 import { clearSnapshotCache } from "./data";
 
@@ -21,10 +21,19 @@ export function useAuth(): AuthState {
   return useContext(AuthContext);
 }
 
+/** ホーム画面から全画面（standalone）で開いているか。 */
+export function isStandalone(): boolean {
+  return window.matchMedia?.("(display-mode: standalone)").matches || (navigator as { standalone?: boolean }).standalone === true;
+}
+
+/**
+ * Googleでログインする。ホーム画面から開いたときはポップアップが別の窓になって戻れないので、
+ * 同じ画面のまま移る（redirect）。authDomain をアプリと同じドメインにしておくと、戻ったあともログインが続く。
+ */
 export function signInWithGoogle() {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
-  return signInWithPopup(auth, provider);
+  return isStandalone() ? signInWithRedirect(auth, provider) : signInWithPopup(auth, provider);
 }
 
 export function logout() {

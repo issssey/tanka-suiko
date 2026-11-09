@@ -46,6 +46,9 @@ button { font-family: var(--sans); }
   display: flex;
   flex-direction: column;
   position: relative;
+  /* ホーム画面から全画面で開いたとき、ノッチ・角・下のバーに重ならない（viewport-fit=cover） */
+  box-sizing: border-box;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 .serif { font-family: var(--serif); }
@@ -153,14 +156,14 @@ button { font-family: var(--sans); }
 .pill[aria-pressed="true"] { border: 1.5px solid var(--accent); background: var(--accent-bg); color: var(--accent); font-weight: 500; }
 
 .fab {
-  position: fixed; bottom: 32px; display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 22px;
+  position: fixed; bottom: calc(32px + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 22px;
   border-radius: 28px; background: var(--accent); color: #fff; text-decoration: none; font-size: 15px; font-weight: 500;
   box-shadow: 0 6px 20px rgba(28, 27, 25, 0.18);
   right: max(20px, calc((100vw - 480px) / 2 + 20px));
 }
 .fab:hover { color: #fff; background: var(--accent-hover); }
 
-.footer-bar { margin-top: auto; padding: 16px 20px 32px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; background: var(--bg); position: sticky; bottom: 0; }
+.footer-bar { margin-top: auto; padding: 16px 20px calc(32px + env(safe-area-inset-bottom)); margin-bottom: calc(-1 * env(safe-area-inset-bottom)); border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; background: var(--bg); position: sticky; bottom: 0; }
 
 .list { list-style: none; margin: 0 16px; padding: 4px 16px; }
 .list li { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line-2); }
@@ -206,7 +209,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 20px; height: 20px;
 .dialog-layer { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-end; justify-content: center; }
 .dialog-backdrop { position: absolute; inset: 0; border: none; padding: 0; background: rgba(28, 27, 25, 0.45); cursor: default; }
 .dialog {
-  position: relative; width: 100%; max-width: 480px; box-sizing: border-box; padding: 12px 20px 32px; background: var(--surface);
+  position: relative; width: 100%; max-width: 480px; box-sizing: border-box; padding: 12px 20px calc(32px + env(safe-area-inset-bottom)); background: var(--surface);
   border-radius: 20px 20px 0 0; display: flex; flex-direction: column; gap: 16px;
 }
 .dialog-handle { align-self: center; width: 40px; height: 4px; border-radius: 2px; background: var(--control); }
@@ -550,7 +553,7 @@ html { touch-action: manipulation; }
 .pc-main .detail-actions > .btn-primary { flex: 1; width: auto; padding: 0 18px; }
 .pc-main .detail-actions .row { flex: 2; }
 .pc-main .detail-actions .row > * { height: 48px; }
-.undo-bar { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 40; display: flex; align-items: center; gap: 14px; max-width: calc(100vw - 32px); padding: 10px 10px 10px 16px; border-radius: 12px; background: var(--text); color: #fff; font-size: 14px; box-shadow: 0 6px 20px rgba(28, 27, 25, 0.25); }
+.undo-bar { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 40; display: flex; align-items: center; gap: 14px; max-width: calc(100vw - 32px); padding: 10px 10px 10px 16px; border-radius: 12px; background: var(--text); color: #fff; font-size: 14px; box-shadow: 0 6px 20px rgba(28, 27, 25, 0.25); }
 .undo-bar span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .undo-bar button { flex: none; height: 36px; padding: 0 12px; border: none; border-radius: 8px; background: transparent; color: #c9d6ea; font-family: var(--sans); font-size: 14px; font-weight: 700; cursor: pointer; }
 .pc-seq .detail-section, .pc-seq .detail-danger { max-width: 880px; }
