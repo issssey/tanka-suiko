@@ -29,8 +29,13 @@ html, body { margin: 0; background: var(--bg); }
 /* ホーム画面から全画面で開くと、ステータスバー（時刻・電池）が画面の上に重なって乗る（viewport-fit=cover）。
    スクロールした本文が透けて重ならないよう、上の safe-area に地の色の帯を固定して置く。ブラウザでは高さ0 */
 body::before {
-  content: ""; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top);
+  content: ""; position: fixed; top: 0; left: 0; right: 0; height: calc(env(safe-area-inset-top) + var(--top-extra, 0px));
   background: var(--bg); z-index: 45; pointer-events: none;
+}
+/* ホーム画面から開いたアプリ版では、iOS が上端にかけるぼかしがステータスバーより下（約80pt）まで伸びる。
+   見出しがぼかしにかからないよう、上の余白と帯を 20px 足す（Safari では足さない） */
+@media (display-mode: standalone) {
+  :root { --top-extra: 20px; }
 }
 body {
   font-family: var(--sans);
@@ -54,7 +59,7 @@ button { font-family: var(--sans); }
   position: relative;
   /* ホーム画面から全画面で開いたとき、ノッチ・角・下のバーに重ならない（viewport-fit=cover） */
   box-sizing: border-box;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  padding: calc(env(safe-area-inset-top) + var(--top-extra, 0px)) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 .serif { font-family: var(--serif); }
@@ -248,7 +253,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 20px; height: 20px;
 /* ===== PC版（幅 1024px 以上） ===== */
 .app.wide { max-width: none; background: var(--bg); }
 .pc { min-height: 100dvh; display: flex; flex-direction: column; background: var(--bg); }
-.pc-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 24px; height: 60px; border-bottom: 1px solid var(--line); background: var(--surface); position: sticky; top: env(safe-area-inset-top); z-index: 10; }
+.pc-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 24px; height: 60px; border-bottom: 1px solid var(--line); background: var(--surface); position: sticky; top: calc(env(safe-area-inset-top) + var(--top-extra, 0px)); z-index: 10; }
 .pc-logo { font-family: var(--serif); font-size: 20px; font-weight: 600; letter-spacing: 0.1em; color: var(--text); text-decoration: none; }
 .pc-logo:hover { color: var(--text); }
 .pc-nav { display: flex; align-items: center; gap: 8px; }
