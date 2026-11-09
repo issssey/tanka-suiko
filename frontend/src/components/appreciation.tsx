@@ -86,7 +86,7 @@ export function AppreciationSection({ tankaId, rev }: { tankaId: string; rev: Re
   if (!a) {
     body = (
       <>
-        <p className="small muted" style={{ margin: 0, lineHeight: 1.7 }}>短歌を読み慣れた読み手に、この稿がどう読めるかを返します。良し悪しは判定しません。</p>
+        <p className="small muted" style={{ margin: 0, lineHeight: 1.7 }}>AIが、短歌を読み慣れた読み手を想定して、この稿がどう読めるかを返します。良し悪しは判定しません。</p>
         <RequestButton tankaId={tankaId} revisionId={rev.id} label="この稿を鑑賞してもらう" />
       </>
     );

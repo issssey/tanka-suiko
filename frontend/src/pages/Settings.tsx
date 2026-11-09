@@ -4,13 +4,14 @@ import { useAccountActions } from "../lib/account";
 import { logout, useAuth } from "../lib/auth";
 import { useSettings, type Settings } from "../lib/settings";
 import { ConfirmDialog, TopBar } from "../components/ui";
-import { DeleteAccountText, EXPORT_NOTE } from "../components/account";
+import { DeleteAccountText, ExportDialog } from "../components/account";
 
 export default function SettingsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [settings, update] = useSettings();
   const [confirm, setConfirm] = useState(false);
+  const [confirmExport, setConfirmExport] = useState(false);
   const { busy, error, exportAll, removeAccount: remove } = useAccountActions();
   const removeAccount = () => remove().catch(() => setConfirm(false));
 
@@ -82,11 +83,14 @@ export default function SettingsPage() {
 
       <h2 className="group-title">データ</h2>
       <div className="card" style={{ margin: "0 16px", padding: 0, overflow: "hidden" }}>
-        <button type="button" className="list-btn" disabled={busy !== null} onClick={exportAll}>すべてのデータを書き出す</button>
+        <button type="button" className="list-btn" disabled={busy !== null} onClick={() => setConfirmExport(true)}>すべてのデータを書き出す</button>
         <button type="button" className="list-btn danger" disabled={busy !== null} onClick={() => setConfirm(true)}>アカウントを削除</button>
       </div>
-      <p className="small muted" style={{ margin: "8px 20px 32px", lineHeight: 1.7 }}>{EXPORT_NOTE}</p>
+      <div style={{ height: 32 }} />
       {error && <p className="error" style={{ marginBottom: 32 }}>{error}</p>}
+      {confirmExport && (
+        <ExportDialog busy={busy === "export"} onConfirm={() => exportAll().finally(() => setConfirmExport(false))} onCancel={() => setConfirmExport(false)} />
+      )}
       {confirm && (
         <ConfirmDialog
           title="アカウントを削除しますか？"

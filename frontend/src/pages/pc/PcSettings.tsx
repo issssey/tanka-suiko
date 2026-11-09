@@ -7,7 +7,7 @@ import { useSettings } from "../../lib/settings";
 import { PcHeader } from "../../components/pc";
 import { PatternList } from "../../components/PatternList";
 import { ConfirmDialog } from "../../components/ui";
-import { DeleteAccountText, EXPORT_NOTE } from "../../components/account";
+import { DeleteAccountText, ExportDialog } from "../../components/account";
 
 const SECTIONS = [
   { id: "account", label: "アカウント" },
@@ -23,6 +23,7 @@ export default function PcSettings() {
   const location = useLocation();
   const [settings, update] = useSettings();
   const [confirm, setConfirm] = useState(false);
+  const [confirmExport, setConfirmExport] = useState(false);
   const account = useAccountActions();
   const provider = "Googleでログイン中";
 
@@ -103,15 +104,17 @@ export default function PcSettings() {
 
           <section id="data">
             <h2>データ</h2>
-            <p className="muted" style={{ margin: "0 0 12px", fontSize: 13, lineHeight: 1.7 }}>{EXPORT_NOTE}</p>
             <div className="card" style={{ display: "flex", gap: 12, flexWrap: "wrap", padding: "18px 20px" }}>
-              <button type="button" className="pc-btn" disabled={account.busy !== null} onClick={account.exportAll}>すべてのデータを書き出す</button>
+              <button type="button" className="pc-btn" disabled={account.busy !== null} onClick={() => setConfirmExport(true)}>すべてのデータを書き出す</button>
               <button type="button" className="pc-btn danger" disabled={account.busy !== null} onClick={() => setConfirm(true)}>アカウントを削除</button>
             </div>
             {account.error && <p className="error" style={{ margin: "12px 0 0" }}>{account.error}</p>}
           </section>
         </div>
       </div>
+      {confirmExport && (
+        <ExportDialog busy={account.busy === "export"} onConfirm={() => account.exportAll().finally(() => setConfirmExport(false))} onCancel={() => setConfirmExport(false)} />
+      )}
       {confirm && (
         <ConfirmDialog
           title="アカウントを削除しますか？"
