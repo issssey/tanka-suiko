@@ -5,6 +5,7 @@ import { createSequence, updateSequence } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { usePublications, useRevision, useSequences, useTankas } from "../lib/data";
 import { kanjiNumber, sequenceTitle, tankaPublicationChip, tankaSequenceChip } from "../lib/publishing";
+import { swipeTarget, type LibraryTab } from "../lib/swipe";
 import type { Publication, Sequence, Tanka } from "../lib/types";
 import { formatDate } from "./ui";
 
@@ -28,17 +29,47 @@ export function WarnIcon() {
   );
 }
 
-/** 短歌・連作・発表記録の切り替え。 */
-export function LibraryTabs({ active, pc }: { active: "tankas" | "sequences" | "publications"; pc?: boolean }) {
+const TAB_PATHS: Record<LibraryTab, string> = { tankas: "/", sequences: "/sequences", publications: "/publications" };
+
+/**
+ * 短歌・連作・発表記録の切り替え。スマホ版では左右のスワイプでも移れる（左へで次、右へで前）。
+ * 画面の端から始めたもの（iPhone の「戻る」）、縦のスクロール、シートやポップアップの上、入力欄の上では動かない。
+ */
+export function LibraryTabs({ active, pc }: { active: LibraryTab; pc?: boolean }) {
+  const navigate = useNavigate();
   const tabs = [
-    { key: "tankas", to: "/", label: "短歌" },
-    { key: "sequences", to: "/sequences", label: "連作" },
-    { key: "publications", to: "/publications", label: "発表記録" },
+    { key: "tankas", label: "短歌" },
+    { key: "sequences", label: "連作" },
+    { key: "publications", label: "発表記録" },
   ] as const;
+
+  useEffect(() => {
+    if (pc) return;
+    let start: { x: number; y: number } | null = null;
+    const ignored = (target: EventTarget | null) =>
+      target instanceof Element && Boolean(target.closest('[role="dialog"], input, textarea, select, [data-no-swipe]'));
+    const onStart = (e: TouchEvent) => {
+      start = e.touches.length === 1 && !ignored(e.target) ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null;
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (!start) return;
+      const t = e.changedTouches[0];
+      const to = swipeTarget(active, start, { x: t.clientX, y: t.clientY }, window.innerWidth);
+      start = null;
+      if (to) navigate(TAB_PATHS[to]);
+    };
+    window.addEventListener("touchstart", onStart, { passive: true });
+    window.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onStart);
+      window.removeEventListener("touchend", onEnd);
+    };
+  }, [active, pc, navigate]);
+
   return (
     <nav aria-label="表示の切り替え" className={pc ? "lib-tabs lib-tabs-pc" : "lib-tabs"}>
       {tabs.map((t) => (
-        <Link key={t.key} to={t.to} aria-current={t.key === active ? "page" : undefined}>{t.label}</Link>
+        <Link key={t.key} to={TAB_PATHS[t.key]} aria-current={t.key === active ? "page" : undefined}>{t.label}</Link>
       ))}
     </nav>
   );
