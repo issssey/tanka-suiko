@@ -5,6 +5,10 @@ import { useWide } from "./lib/responsive";
 import { Loading } from "./components/ui";
 import AppreciationPage from "./pages/Appreciation";
 import PcAppreciation from "./pages/pc/PcAppreciation";
+import NotesPage from "./pages/Notes";
+import NotePage from "./pages/Note";
+import NoteWritePage from "./pages/NoteWrite";
+import PcNotes, { PcNote, PcNoteEditRedirect, PcNoteNew } from "./pages/pc/PcNotes";
 import LoginPage from "./pages/Login";
 import ListPage from "./pages/List";
 import NewTankaPage from "./pages/NewTanka";
@@ -76,6 +80,10 @@ function Screens() {
         <Route path="/t/:tankaId/history" element={auth(pick(<HistoryPage />, <PcHistory />))} />
         <Route path="/t/:tankaId/compare" element={auth(pick(<ComparePage />, <PcHistory />))} />
         <Route path="/t/:tankaId/hidden" element={auth(pick(<HiddenPage />, <PcHidden />))} />
+        <Route path="/notes" element={auth(pick(<NotesPage />, <PcNotes />))} />
+        <Route path="/notes/new" element={auth(pick(<NoteWritePage key="new" />, <PcNoteNew />))} />
+        <Route path="/notes/:noteId" element={auth(pick(<NotePage />, <PcNote />))} />
+        <Route path="/notes/:noteId/edit" element={auth(pick(<NoteWritePage key="edit" />, <PcNoteEditRedirect />))} />
         <Route path="/sequences" element={auth(pick(<SequencesPage />, <PcSequences />))} />
         <Route path="/sequences/:sequenceId" element={auth(pick(<SequencePage />, <PcSequences />))} />
         <Route path="/publications" element={auth(pick(<PublicationsPage />, <PcPublications />))} />

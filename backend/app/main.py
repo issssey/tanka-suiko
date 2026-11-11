@@ -20,6 +20,7 @@ from .config import Settings, check_production_safety, get_settings
 from .patterns import load_patterns
 from .preprocess.pipeline import ConfirmedSegment, PreprocessError
 from .repository.base import NotFound
+from .models import MAX_NOTE_BODY
 from .service import BadRequest, Forbidden, LimitReached, Service
 from .tasks import CloudTasksEnqueuer, InlineEnqueuer, SyncEnqueuer
 
@@ -85,6 +86,7 @@ class CreateRevisionIn(BaseModel):
     orthography: Literal["modern", "historical"]
     note: str | None = Field(default=None, max_length=200)
     readingChoices: dict[str, str] = Field(default_factory=dict)
+    sourceNoteId: str | None = Field(default=None, max_length=100)  # 気づきから書いた初稿なら、その気づき
 
     _choices = field_validator("readingChoices")(_check_choices)
 
@@ -99,6 +101,10 @@ class AsyncCheckIn(BaseModel):
     tankaId: str
     revisionId: str
     runId: str
+
+
+class NoteIn(BaseModel):
+    body: str = Field(min_length=1, max_length=MAX_NOTE_BODY)
 
 
 class AppreciateIn(BaseModel):
@@ -315,6 +321,7 @@ def api_router() -> APIRouter:
             orthography=body.orthography,
             note=body.note,
             reading_choices=body.readingChoices,
+            source_note_id=body.sourceNoteId,
         )
         return _save_response(res)
 
@@ -334,6 +341,19 @@ def api_router() -> APIRouter:
     @r.delete("/tankas/{tanka_id}/feedback/{fingerprint}", status_code=status.HTTP_204_NO_CONTENT)
     def delete_feedback(tanka_id: str, fingerprint: str, user: str = Depends(current_user), s: Service = Depends(svc)):
         s.delete_feedback(user, tanka_id, fingerprint)
+
+    # --- 気づき ---
+    @r.post("/notes", status_code=status.HTTP_201_CREATED)
+    def create_note(body: NoteIn, user: str = Depends(current_user), s: Service = Depends(svc)):
+        return s.create_note(user, body.body).model_dump(mode="json")
+
+    @r.put("/notes/{note_id}")
+    def update_note(note_id: str, body: NoteIn, user: str = Depends(current_user), s: Service = Depends(svc)):
+        return s.update_note(user, note_id, body.body).model_dump(mode="json")
+
+    @r.delete("/notes/{note_id}", status_code=status.HTTP_204_NO_CONTENT)
+    def delete_note(note_id: str, user: str = Depends(current_user), s: Service = Depends(svc)):
+        s.delete_note(user, note_id)
 
     # --- 鑑賞 ---
     @r.post("/tankas/{tanka_id}/revisions/{revision_id}/appreciation")

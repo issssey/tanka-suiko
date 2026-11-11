@@ -15,7 +15,9 @@ from .checkers.llm import LLMChecker, LLMError, prompt_version
 from .checkers.runner import apply_transitions, current_fingerprint, run_async, run_sync
 from .config import Settings
 from .models import (
+    MAX_NOTES_PER_USER,
     MAX_SEQUENCE_ITEMS,
+    Note,
     Appreciation,
     CheckRun,
     Feedback,
@@ -104,8 +106,15 @@ class Service:
     # --- 推敲版の保存 ---
     def create_revision(self, user_id: str, tanka_id: str, *, parent_revision_id: str | None, body: str,
                         segments: list[ConfirmedSegment], style: str, orthography: str, note: str | None,
-                        reading_choices: dict[str, str] | None = None) -> SaveResult:
+                        reading_choices: dict[str, str] | None = None, source_note_id: str | None = None) -> SaveResult:
         tanka = self._own_tanka(user_id, tanka_id)
+        # 気づきから書いた初稿なら、保存のあとで気づきと結ぶ（作りかけで保存しなかった短歌は結ばない）
+        link_note = source_note_id if source_note_id and tanka.currentRevisionId is None and not tanka.sourceNoteId else None
+        if link_note:
+            try:
+                self._own_note(user_id, link_note)
+            except (NotFound, Forbidden) as e:
+                raise BadRequest("もとにした気づきが見つかりません") from e
         if parent_revision_id is None:
             parent_revision_id = tanka.currentRevisionId
         if parent_revision_id is not None:
@@ -134,6 +143,11 @@ class Service:
             },
             reading_choices or {},
         )
+        if link_note:
+            try:
+                self.repo.link_tanka_to_note(tanka_id, link_note)
+            except NotFound:
+                log.warning("気づきとの結びつけに失敗しました（保存の間に消された）: %s", link_note)
         sync_run = self._run_sync(tanka_id, revision)
         async_run = self._queue_async(tanka_id, revision, trigger="save")
         return SaveResult(revision, sync_run, async_run)
@@ -421,6 +435,8 @@ class Service:
             return
         for sequence_id in tanka.sequenceIds:
             self.repo.remove_tanka_from_sequence(sequence_id, tanka_id)
+        if tanka.sourceNoteId:
+            self.repo.remove_tanka_from_note(tanka.sourceNoteId, tanka_id)
         self.repo.purge_tanka(tanka_id)
 
     def _purge_or_retry(self, tanka_id: str) -> None:
@@ -449,6 +465,36 @@ class Service:
             except Exception:
                 log.exception("短歌の消し直しに失敗しました: %s", tanka_id)
         return len(ids)
+
+    # --- 気づき ---
+    def _own_note(self, user_id: str, note_id: str) -> Note:
+        note = self.repo.get_note(note_id)
+        if note.authorId != user_id:
+            raise Forbidden(note_id)
+        return note
+
+    @staticmethod
+    def _note_body(body: str) -> str:
+        body = body.strip()
+        if not body:
+            raise BadRequest("気づきを書いてください")
+        return body
+
+    def create_note(self, user_id: str, body: str) -> Note:
+        """気づきを書き留める。LLMには渡さない。"""
+        if self.repo.count_notes_by_author(user_id) >= MAX_NOTES_PER_USER:
+            raise BadRequest(f"気づきは{MAX_NOTES_PER_USER:,}件までです")
+        now = _now()
+        return self.repo.create_note(Note(id="", authorId=user_id, body=self._note_body(body), createdAt=now, updatedAt=now))
+
+    def update_note(self, user_id: str, note_id: str, body: str) -> Note:
+        note = self._own_note(user_id, note_id)
+        return self.repo.update_note(note.model_copy(update={"body": self._note_body(body), "updatedAt": _now()}))
+
+    def delete_note(self, user_id: str, note_id: str) -> None:
+        """気づきを消す。そこから書いた歌は残る（もとにした気づきのつながりだけ外す）。"""
+        self._own_note(user_id, note_id)
+        self.repo.delete_note(note_id)
 
     # --- 連作 ---
     def _own_sequence(self, user_id: str, sequence_id: str) -> Sequence:
@@ -578,7 +624,7 @@ class Service:
 
     # --- アカウント ---
     def export_user(self, user_id: str) -> dict[str, Any]:
-        """自分のすべての短歌・稿・チェック結果・作者の判断・鑑賞・連作・発表記録を書き出す。"""
+        """自分のすべての気づき・短歌・稿・チェック結果・作者の判断・鑑賞・連作・発表記録を書き出す。"""
         tankas = []
         for t in self.repo.list_tankas_by_author(user_id):
             revisions = self.repo.list_revisions(t.id)
@@ -586,6 +632,7 @@ class Service:
                 "id": t.id,
                 "createdAt": t.createdAt.isoformat(),
                 "updatedAt": t.updatedAt.isoformat(),
+                "sourceNoteId": t.sourceNoteId,
                 "feedback": [f.model_dump(mode="json") for f in self.repo.list_feedback(t.id)],
                 "appreciations": [a.model_dump(mode="json") for a in self.repo.list_appreciations(t.id)],
                 "revisions": [
@@ -606,8 +653,9 @@ class Service:
                 ],
             })
         sequences = [s.model_dump(mode="json") for s in self.repo.list_sequences_by_author(user_id)]
+        notes = [n.model_dump(mode="json") for n in self.repo.list_notes_by_author(user_id)]
         publications = [p.model_dump(mode="json") for p in self.repo.list_publications_by_author(user_id)]
-        return {"exportedAt": _now().isoformat(), "tankas": tankas, "sequences": sequences, "publications": publications}
+        return {"exportedAt": _now().isoformat(), "notes": notes, "tankas": tankas, "sequences": sequences, "publications": publications}
 
     def delete_account(self, user_id: str, delete_auth_user: Callable[[str], None]) -> None:
         """アカウント削除。すべての短歌を削除し、Firebase Authentication のユーザーも消す。"""
@@ -618,5 +666,7 @@ class Service:
             self.repo.delete_sequence(seq.id)
         for pub in self.repo.list_publications_by_author(user_id):
             self.repo.delete_publication(pub.id)
+        for note in self.repo.list_notes_by_author(user_id):
+            self.repo.delete_note(note.id)
         self.repo.delete_user_data(user_id)
         delete_auth_user(user_id)

@@ -76,6 +76,7 @@ class Tanka(Model):
     deletedAt: datetime | None = None  # 削除処理中の目印
     publishedCount: int = 0  # 発表記録の件数（発表記録の書き込みと同じトランザクションで更新）
     sequenceIds: list[str] = Field(default_factory=list)  # 入っている連作（連作の書き込みと同じトランザクションで更新）
+    sourceNoteId: str | None = None  # もとにした気づき（初稿の保存で結びつけ、気づきの tankaIds と同じトランザクションで更新）
 
 
 class Revision(Model):
@@ -204,5 +205,21 @@ class Appreciation(Model):
     splits: list[AppreciationSplit] = Field(default_factory=list)
     authorNote: str | None = None  # 伝えたかったこと（作者のメモ。LLMには渡さない）
     error: str | None = None
+    createdAt: datetime
+    updatedAt: datetime
+
+
+# --- 気づき ---
+MAX_NOTE_BODY = 500
+MAX_NOTES_PER_USER = 10_000
+
+
+class Note(Model):
+    """気づき。歌になる前の素材。いつでも書き換えてよい（稿と違い履歴は持たない）。LLMには渡さない。"""
+
+    id: str
+    authorId: str
+    body: str
+    tankaIds: list[str] = Field(default_factory=list)  # この気づきから書いた歌
     createdAt: datetime
     updatedAt: datetime

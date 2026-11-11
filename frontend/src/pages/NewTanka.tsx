@@ -1,12 +1,16 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { createTanka } from "../lib/api";
 import { saveDraft } from "../lib/draft";
 import { loadSettings } from "../lib/settings";
 import { TopBar } from "../components/ui";
+import { NoteSource } from "../components/notes";
 
 export default function NewTankaPage() {
   const navigate = useNavigate();
+  // 気づきから書くときは ?note= で受け取り、上に出す（入力欄には入れない）
+  const [params] = useSearchParams();
+  const noteId = params.get("note");
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +28,7 @@ export default function NewTankaPage() {
         note: "",
         style: s.defaultStyle === "auto" ? undefined : s.defaultStyle,
         orthography: s.defaultOrthography === "auto" ? undefined : s.defaultOrthography,
+        sourceNoteId: noteId,
       });
       navigate(`/t/${tankaId}/reading`);
     } catch (e) {
@@ -34,8 +39,13 @@ export default function NewTankaPage() {
 
   return (
     <>
-      <TopBar back="/" backLabel="一覧に戻る" title="新しい短歌" sub="初稿を書く" />
+      <TopBar back={noteId ? `/notes/${noteId}` : "/"} backLabel={noteId ? "気づきに戻る" : "一覧に戻る"} title="新しい短歌" sub="初稿を書く" />
       <div style={{ display: "flex", flexDirection: "column", gap: 20, paddingTop: 8 }}>
+        {noteId && (
+          <div style={{ padding: "0 20px" }}>
+            <NoteSource noteId={noteId} onCopy={(t) => setBody(t.replace(/\s*\n\s*/g, " ").slice(0, 80))} />
+          </div>
+        )}
         <div className="field">
           <label htmlFor="body">本文</label>
           <textarea id="body" maxLength={80} className="textarea serif" value={body} onChange={(e) => setBody(e.target.value)} placeholder="ここに一首を書く" />

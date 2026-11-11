@@ -94,7 +94,7 @@ export function usePreprocess(
 export async function saveWithReadings(
   tankaId: string,
   state: ReadingState,
-  draft: { parentRevisionId: string | null; body: string; note: string },
+  draft: { parentRevisionId: string | null; body: string; note: string; sourceNoteId?: string | null },
 ) {
   const r = state.result;
   if (!r) throw new Error("読みがまだ取得できていません");
@@ -106,5 +106,6 @@ export async function saveWithReadings(
     orthography: r.orthography,
     note: draft.note || null,
     readingChoices: state.overrides,
+    sourceNoteId: draft.sourceNoteId ?? null,
   });
 }

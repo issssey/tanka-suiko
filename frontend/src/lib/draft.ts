@@ -8,6 +8,8 @@ export interface Draft {
   note: string;
   style?: Style;
   orthography?: Orthography;
+  /** 気づきから書く初稿なら、その気づき */
+  sourceNoteId?: string | null;
 }
 
 const key = (tankaId: string) => `suiko.draft.${tankaId}`;

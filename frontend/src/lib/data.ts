@@ -11,7 +11,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Appreciation, CheckRun, Feedback, Publication, Revision, Sequence, Tanka } from "./types";
+import type { Appreciation, CheckRun, Feedback, Note, Publication, Revision, Sequence, Tanka } from "./types";
 
 export interface Loadable<T> {
   data: T;
@@ -342,5 +342,31 @@ export function useSequencePublications(uid: string | undefined, sequenceId: str
       : null,
     [],
     [uid, sequenceId],
+  );
+}
+
+/** 自分の気づき（書いた日時の新しい順）。 */
+export function useNotes(uid: string | undefined): Loadable<Note[]> {
+  return useSnapshot<Note[]>(
+    "useNotes",
+    uid
+      ? (set, fail) =>
+          onSnapshot(
+            query(collection(db, "notes"), where("authorId", "==", uid), orderBy("createdAt", "desc")),
+            (snap) => set(snap.docs.map((d) => fromDoc<Note>(d.id, d.data()))),
+            fail,
+          )
+      : null,
+    [],
+    [uid],
+  );
+}
+
+export function useNote(noteId: string | null | undefined): Loadable<Note | null> {
+  return useSnapshot<Note | null>(
+    "useNote",
+    noteId ? (set, fail) => onSnapshot(doc(db, "notes", noteId), (d) => set(d.exists() ? fromDoc<Note>(d.id, d.data()) : null), fail) : null,
+    null,
+    [noteId],
   );
 }

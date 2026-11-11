@@ -9,6 +9,7 @@ import { loadSettings } from "../../lib/settings";
 import { saveWithReadings, usePreprocess } from "../../lib/usePreprocess";
 import { PcShell } from "../../components/pc";
 import { UnreadableHelp } from "../../components/ui";
+import { NoteSource } from "../../components/notes";
 
 const KANSUJI = ["", "一", "二", "三", "四", "五"];
 
@@ -17,6 +18,8 @@ export default function PcWrite() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const isNew = !routeTankaId;
+  // 気づきから書くときは ?note= で受け取り、上に出す（入力欄には入れない）
+  const noteId = isNew ? params.get("note") : null;
   const [tankaId, setTankaId] = useState<string | null>(routeTankaId ?? null);
   const { data: tanka } = useTanka(tankaId ?? undefined);
   const parentId = isNew ? null : (params.get("from") ?? tanka?.currentRevisionId ?? null);
@@ -75,7 +78,7 @@ export default function PcWrite() {
     setSaving(true);
     setSaveError(null);
     try {
-      const res = await saveWithReadings(tankaId, reading, { parentRevisionId: isNew ? null : parent?.id ?? null, body, note });
+      const res = await saveWithReadings(tankaId, reading, { parentRevisionId: isNew ? null : parent?.id ?? null, body, note, sourceNoteId: noteId });
       navigate(`/t/${tankaId}/r/${res.revisionId}`, { replace: true });
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : "保存できませんでした");
@@ -176,6 +179,7 @@ export default function PcWrite() {
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>{isNew ? "新しい短歌" : `第${nextNo}稿を書く`}</h1>
           <span className="small muted" style={{ fontSize: 13 }}>{isNew ? "初稿を書く" : parent ? `第${parent.revisionNo}稿から推敲` : ""}</span>
         </div>
+        {noteId && <NoteSource noteId={noteId} onCopy={(t) => setBody(t.replace(/\s*\n\s*/g, " ").slice(0, 80))} />}
         {parent && (
           <section style={{ display: "flex", flexDirection: "column", gap: 6, padding: "14px 18px", background: "var(--low-bg)", borderRadius: 12 }}>
             <span className="small muted" style={{ fontWeight: 500 }}>前の稿（第{parent.revisionNo}稿）</span>

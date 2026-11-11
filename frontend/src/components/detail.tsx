@@ -7,6 +7,7 @@ import { useRevision, useRevisions, useSequencePublications, useSequences, useTa
 import { formatDay, publicationChanged, publicationSummary, publishedRevisionNo, sequenceTitle } from "../lib/publishing";
 import type { Publication, Revision, Sequence, Tanka } from "../lib/types";
 import { AddToSequenceSheet } from "./library";
+import { SourceNoteRow } from "./notes";
 import { ConfirmDialog, formatDate } from "./ui";
 
 /** 区画（見出し付き）。 */
@@ -98,7 +99,7 @@ export function DeletePublicationDialog({ pub, busy, onConfirm, onCancel }: { pu
 
 // --- 短歌（チェック結果） -----------------------------------------------------
 
-/** 短歌のつながり：その歌の発表記録と、入っている連作。 */
+/** 短歌のつながり：もとにした気づき、その歌の発表記録、入っている連作。 */
 export function TankaRelations({ tanka, rev }: { tanka: Tanka; rev: Revision }) {
   const { user } = useAuth();
   const { data: pubs } = useTankaPublications(user?.uid, tanka.id);
@@ -108,6 +109,7 @@ export function TankaRelations({ tanka, rev }: { tanka: Tanka; rev: Revision }) 
     <DetailSection title="つながり">
       <LinkRows empty="発表記録と連作はまだありません">
         {[
+          tanka.sourceNoteId ? <SourceNoteRow key="note" noteId={tanka.sourceNoteId} /> : null,
           ...pubs.map((p) => {
             const no = publishedRevisionNo(p, tanka.id);
             const what = p.sequenceId ? `連作「${p.sequenceTitle || "無題"}」で第${no}稿を出した` : `第${no}稿を出した`;

@@ -7,6 +7,7 @@
       checkRuns/{runId}                         … findings を配列で持つ
     feedback/{fingerprint}                      … 作者の判断（短歌単位）
     appreciations/{revisionId}                  … 鑑賞（1稿1件。稿とは別のドキュメント）
+  notes/{noteId}                                … 気づき。tankas.sourceNoteId と tankaIds を同じトランザクションで結ぶ
   sequences/{sequenceId}                        … 連作。tankas.sequenceIds を同じトランザクションで更新
   publications/{publicationId}                  … 発表記録。tankas.publishedCount と users.destinations も同時に更新
 
@@ -19,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Protocol
 
-from ..models import Appreciation, CheckRun, Feedback, Publication, Revision, Sequence, Tanka
+from ..models import Appreciation, CheckRun, Note, Feedback, Publication, Revision, Sequence, Tanka
 
 
 class NotFound(LookupError):
@@ -150,4 +151,32 @@ class Repository(Protocol):
 
     def get_destinations(self, user_id: str) -> list[str]:
         """出し先の候補（最近使った順）。"""
+        ...
+
+    # --- 気づき ---
+    def create_note(self, note: Note) -> Note: ...
+
+    def update_note(self, note: Note) -> Note:
+        """本文と updatedAt を置き換える。なければ NotFound。"""
+        ...
+
+    def delete_note(self, note_id: str) -> None:
+        """気づきを消し、そこから書いた短歌の sourceNoteId を外す（短歌は残す）。何度呼んでもよい。"""
+        ...
+
+    def get_note(self, note_id: str) -> Note: ...
+
+    def list_notes_by_author(self, author_id: str) -> list[Note]:
+        """書いた日時の新しい順に返す。"""
+        ...
+
+    def count_notes_by_author(self, author_id: str) -> int: ...
+
+    def link_tanka_to_note(self, tanka_id: str, note_id: str) -> None:
+        """短歌の sourceNoteId と気づきの tankaIds を同じトランザクションで結ぶ。
+        気づきがないか短歌が削除中なら NotFound。"""
+        ...
+
+    def remove_tanka_from_note(self, note_id: str, tanka_id: str) -> None:
+        """短歌の削除に伴い、気づきの tankaIds からその歌を外す。気づきがなければ何もしない。"""
         ...

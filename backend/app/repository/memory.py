@@ -7,7 +7,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from ..models import MAX_DESTINATIONS, Appreciation, CheckRun, Feedback, Publication, Revision, Sequence, Tanka
+from ..models import MAX_DESTINATIONS, Appreciation, CheckRun, Note, Feedback, Publication, Revision, Sequence, Tanka
 from .base import NotFound
 
 
@@ -24,6 +24,7 @@ class MemoryRepository:
         self.feedback: dict[str, dict[str, Feedback]] = {}
         self.usage: dict[tuple[str, str, str], int] = {}
         self.appreciations: dict[str, dict[str, Appreciation]] = {}
+        self.notes: dict[str, Note] = {}
         self.users: set[str] = set()
         self.sequences: dict[str, Sequence] = {}
         self.publications: dict[str, Publication] = {}
@@ -304,3 +305,59 @@ class MemoryRepository:
     def get_destinations(self, user_id: str) -> list[str]:
         with self._lock:
             return list(self.destinations.get(user_id, []))
+
+    # --- 気づき ---
+    def create_note(self, note: Note) -> Note:
+        with self._lock:
+            note = note.model_copy(update={"id": note.id or f"n_{uuid.uuid4().hex[:12]}"}, deep=True)
+            self.notes[note.id] = note
+            return note.model_copy(deep=True)
+
+    def update_note(self, note: Note) -> Note:
+        with self._lock:
+            cur = self.notes.get(note.id)
+            if cur is None:
+                raise NotFound(note.id)
+            cur.body = note.body
+            cur.updatedAt = note.updatedAt
+            return cur.model_copy(deep=True)
+
+    def delete_note(self, note_id: str) -> None:
+        with self._lock:
+            note = self.notes.pop(note_id, None)
+            if note is None:
+                return
+            for tid in note.tankaIds:
+                t = self.tankas.get(tid)
+                if t is not None and t.sourceNoteId == note_id:
+                    t.sourceNoteId = None
+
+    def get_note(self, note_id: str) -> Note:
+        with self._lock:
+            if note_id not in self.notes:
+                raise NotFound(note_id)
+            return self.notes[note_id].model_copy(deep=True)
+
+    def list_notes_by_author(self, author_id: str) -> list[Note]:
+        with self._lock:
+            ns = [n for n in self.notes.values() if n.authorId == author_id]
+            return [n.model_copy(deep=True) for n in sorted(ns, key=lambda n: n.createdAt, reverse=True)]
+
+    def count_notes_by_author(self, author_id: str) -> int:
+        with self._lock:
+            return sum(1 for n in self.notes.values() if n.authorId == author_id)
+
+    def link_tanka_to_note(self, tanka_id: str, note_id: str) -> None:
+        with self._lock:
+            note = self.notes.get(note_id)
+            if note is None or not self._active(tanka_id):
+                raise NotFound(note_id)
+            self.tankas[tanka_id].sourceNoteId = note_id
+            if tanka_id not in note.tankaIds:
+                note.tankaIds.append(tanka_id)
+
+    def remove_tanka_from_note(self, note_id: str, tanka_id: str) -> None:
+        with self._lock:
+            note = self.notes.get(note_id)
+            if note is not None and tanka_id in note.tankaIds:
+                note.tankaIds.remove(tanka_id)

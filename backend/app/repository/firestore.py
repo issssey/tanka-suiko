@@ -14,7 +14,7 @@ from typing import Any
 from google.cloud import firestore
 from google.cloud.firestore_v1.field_path import FieldPath
 
-from ..models import MAX_DESTINATIONS, Appreciation, CheckRun, Feedback, Publication, Revision, Sequence, Tanka
+from ..models import MAX_DESTINATIONS, Appreciation, CheckRun, Note, Feedback, Publication, Revision, Sequence, Tanka
 from .base import NotFound
 
 
@@ -443,3 +443,87 @@ class FirestoreRepository:
     def get_destinations(self, user_id: str) -> list[str]:
         snap = self._user(user_id).get()
         return list((snap.to_dict() or {}).get("destinations", [])) if snap.exists else []
+
+    # --- 気づき ---
+    def _notes(self):
+        return self.db.collection("notes")
+
+    def create_note(self, note: Note) -> Note:
+        ref = self._notes().document(note.id) if note.id else self._notes().document()
+        note = note.model_copy(update={"id": ref.id})
+        ref.set(_dump(note))
+        return note
+
+    def update_note(self, note: Note) -> Note:
+        ref = self._notes().document(note.id)
+        transaction = self.db.transaction()
+
+        @firestore.transactional
+        def run(tx) -> Note:
+            snap = ref.get(transaction=tx)
+            if not snap.exists:
+                raise NotFound(note.id)
+            tx.update(ref, {"body": note.body, "updatedAt": note.updatedAt})
+            return Note(id=snap.id, **{**snap.to_dict(), "body": note.body, "updatedAt": note.updatedAt})
+
+        return run(transaction)
+
+    def delete_note(self, note_id: str) -> None:
+        ref = self._notes().document(note_id)
+        transaction = self.db.transaction()
+
+        @firestore.transactional
+        def run(tx) -> None:
+            snap = ref.get(transaction=tx)
+            if not snap.exists:
+                return
+            tanka_ids = (snap.to_dict() or {}).get("tankaIds", [])
+            tankas = self._get_tankas(tx, tanka_ids)
+            for tid, tsnap in tankas.items():
+                if tsnap.exists and (tsnap.to_dict() or {}).get("sourceNoteId") == note_id:
+                    tx.update(self._tanka(tid), {"sourceNoteId": None})
+            tx.delete(ref)
+
+        run(transaction)
+
+    def get_note(self, note_id: str) -> Note:
+        snap = self._notes().document(note_id).get()
+        if not snap.exists:
+            raise NotFound(note_id)
+        return Note(id=snap.id, **snap.to_dict())
+
+    def list_notes_by_author(self, author_id: str) -> list[Note]:
+        q = self._notes().where(filter=firestore.FieldFilter("authorId", "==", author_id))
+        notes = [Note(id=s.id, **s.to_dict()) for s in q.stream()]
+        return sorted(notes, key=lambda n: n.createdAt, reverse=True)
+
+    def count_notes_by_author(self, author_id: str) -> int:
+        q = self._notes().where(filter=firestore.FieldFilter("authorId", "==", author_id))
+        return int(q.count().get()[0][0].value)
+
+    def link_tanka_to_note(self, tanka_id: str, note_id: str) -> None:
+        ref = self._notes().document(note_id)
+        tanka_ref = self._tanka(tanka_id)
+        transaction = self.db.transaction()
+
+        @firestore.transactional
+        def run(tx) -> None:
+            snap = ref.get(transaction=tx)
+            tanka_snap = tanka_ref.get(transaction=tx)
+            if not snap.exists or not self._is_active(tanka_snap):
+                raise NotFound(note_id)
+            tx.update(tanka_ref, {"sourceNoteId": note_id})
+            tx.update(ref, {"tankaIds": firestore.ArrayUnion([tanka_id])})
+
+        run(transaction)
+
+    def remove_tanka_from_note(self, note_id: str, tanka_id: str) -> None:
+        ref = self._notes().document(note_id)
+        transaction = self.db.transaction()
+
+        @firestore.transactional
+        def run(tx) -> None:
+            if ref.get(transaction=tx).exists:
+                tx.update(ref, {"tankaIds": firestore.ArrayRemove([tanka_id])})
+
+        run(transaction)

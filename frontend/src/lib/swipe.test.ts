@@ -9,7 +9,8 @@ describe("一覧のスワイプ", () => {
     expect(swipeTarget("publications", { x: 100, y: 400 }, { x: 250, y: 400 }, W)).toBe("sequences");
   });
   it("端のタブより先へは行かない", () => {
-    expect(swipeTarget("tankas", { x: 100, y: 400 }, { x: 250, y: 400 }, W)).toBeNull();
+    expect(swipeTarget("tankas", { x: 100, y: 400 }, { x: 250, y: 400 }, W)).toBe("notes");
+    expect(swipeTarget("notes", { x: 100, y: 400 }, { x: 250, y: 400 }, W)).toBeNull();
     expect(swipeTarget("publications", { x: 300, y: 400 }, { x: 150, y: 400 }, W)).toBeNull();
   });
   it("短い動き・縦のスクロール・画面の端からは切り替えない", () => {

@@ -16,7 +16,8 @@ export function ListIcon() {
 }
 
 /** いまの画面がどの欄か（ヘッダーで下線を引く）。 */
-function sectionOf(pathname: string): "tankas" | "sequences" | "publications" | "settings" {
+function sectionOf(pathname: string): "notes" | "tankas" | "sequences" | "publications" | "settings" {
+  if (pathname.startsWith("/notes")) return "notes";
   if (pathname.startsWith("/sequences")) return "sequences";
   if (pathname.startsWith("/publications") || pathname.startsWith("/publish")) return "publications";
   if (pathname.startsWith("/settings") || pathname.startsWith("/patterns")) return "settings";
@@ -24,13 +25,14 @@ function sectionOf(pathname: string): "tankas" | "sequences" | "publications" | 
 }
 
 /**
- * PC版のヘッダー。短歌・連作・発表記録・設定を切り替える。
+ * PC版のヘッダー。気づき・短歌・連作・発表記録・設定を切り替える。
  * 設定はいちばん右の歯車に「設定」の文字を添える。アカウント用のアイコンは置かない（ログイン中のアカウントは設定で確かめる）。
  */
 export function PcHeader() {
   const { pathname } = useLocation();
   const current = sectionOf(pathname);
   const links = [
+    { key: "notes", to: "/notes", label: "気づき" },
     { key: "tankas", to: "/", label: "短歌" },
     { key: "sequences", to: "/sequences", label: "連作" },
     { key: "publications", to: "/publications", label: "発表記録" },

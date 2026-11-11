@@ -52,6 +52,8 @@ export interface Tanka {
   readingMemory: Record<string, string>;
   /** 発表記録の件数 */
   publishedCount?: number;
+  /** もとにした気づき（初稿の保存で結ばれる） */
+  sourceNoteId?: string | null;
   /** 入っている連作 */
   sequenceIds?: string[];
   createdAt: Date;
@@ -171,6 +173,17 @@ export interface Appreciation {
   splits: (AppreciationPhrase & { readings: string[] })[];
   authorNote: string | null;
   error: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** 気づき。歌になる前の素材。いつでも書き換えてよい。LLMには渡さない。 */
+export interface Note {
+  id: string;
+  authorId: string;
+  body: string;
+  /** この気づきから書いた歌 */
+  tankaIds: string[];
   createdAt: Date;
   updatedAt: Date;
 }

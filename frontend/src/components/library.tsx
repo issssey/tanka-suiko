@@ -29,15 +29,16 @@ export function WarnIcon() {
   );
 }
 
-const TAB_PATHS: Record<LibraryTab, string> = { tankas: "/", sequences: "/sequences", publications: "/publications" };
+const TAB_PATHS: Record<LibraryTab, string> = { notes: "/notes", tankas: "/", sequences: "/sequences", publications: "/publications" };
 
 /**
- * 短歌・連作・発表記録の切り替え。スマホ版では左右のスワイプでも移れる（左へで次、右へで前）。
+ * 気づき・短歌・連作・発表記録の切り替え。スマホ版では左右のスワイプでも移れる（左へで次、右へで前）。
  * 画面の端から始めたもの（iPhone の「戻る」）、縦のスクロール、シートやポップアップの上、入力欄の上では動かない。
  */
 export function LibraryTabs({ active, pc }: { active: LibraryTab; pc?: boolean }) {
   const navigate = useNavigate();
   const tabs = [
+    { key: "notes", label: "気づき" },
     { key: "tankas", label: "短歌" },
     { key: "sequences", label: "連作" },
     { key: "publications", label: "発表記録" },

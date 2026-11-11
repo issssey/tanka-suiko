@@ -1,6 +1,6 @@
 // 書き込みと処理は Cloud Run の API を通す。読み取りは Firestore を直接読む（data.ts）。
 import { auth } from "./firebase";
-import type { Feedback, Orthography, PreprocessResponse, Publication, SaveResponse, Sequence, Style } from "./types";
+import type { Feedback, Note, Orthography, PreprocessResponse, Publication, SaveResponse, Sequence, Style } from "./types";
 
 const BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080").replace(/\/$/, "");
 
@@ -84,6 +84,8 @@ export interface SaveRevisionInput {
   orthography: Orthography;
   note: string | null;
   readingChoices: Record<string, string>;
+  /** 気づきから書いた初稿なら、その気づき */
+  sourceNoteId?: string | null;
 }
 
 export function saveRevision(tankaId: string, input: SaveRevisionInput) {
@@ -154,4 +156,18 @@ export function updatePublication(publicationId: string, input: PublicationField
 
 export function deletePublication(publicationId: string) {
   return request<void>("DELETE", `/publications/${publicationId}`);
+}
+
+/** 気づきを書き留める。 */
+export function createNote(body: string) {
+  return request<Note>("POST", "/notes", { body });
+}
+
+export function updateNote(noteId: string, body: string) {
+  return request<Note>("PUT", `/notes/${noteId}`, { body });
+}
+
+/** 気づきを消す。そこから書いた歌は残る。 */
+export function deleteNote(noteId: string) {
+  return request<void>("DELETE", `/notes/${noteId}`);
 }

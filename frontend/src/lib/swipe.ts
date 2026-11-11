@@ -1,6 +1,6 @@
-// 一覧（短歌・連作・発表記録）を左右のスワイプで切り替える判定。
+// 一覧（気づき・短歌・連作・発表記録）を左右のスワイプで切り替える判定。
 
-export const LIBRARY_TABS = ["tankas", "sequences", "publications"] as const;
+export const LIBRARY_TABS = ["notes", "tankas", "sequences", "publications"] as const;
 export type LibraryTab = (typeof LIBRARY_TABS)[number];
 
 /** 画面の端からのスワイプは iPhone の「戻る」操作に任せる（この幅より内側から始めたものだけ見る）。 */

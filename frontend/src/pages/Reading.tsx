@@ -74,6 +74,7 @@ export default function ReadingPage() {
         orthography: result.orthography,
         note: draft.note || null,
         readingChoices: overrides,
+        sourceNoteId: draft.sourceNoteId ?? null,
       });
       clearDraft(tankaId);
       navigate(`/t/${tankaId}/r/${res.revisionId}`, { replace: true });

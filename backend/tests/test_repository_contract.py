@@ -284,6 +284,49 @@ def test_appreciation_is_refused_and_purged_with_tanka(repo):
     assert repo.list_appreciations(t.id) == []
 
 
+# --- 気づき ---
+def _note(author: str = "u1", body: str = "駅のホームで手紙を読み返す人"):
+    from app.models import Note
+
+    now = datetime.now(UTC)
+    return Note(id="", authorId=author, body=body, createdAt=now, updatedAt=now)
+
+
+def test_note_round_trip_and_link(repo):
+    n = repo.create_note(_note())
+    repo.create_note(_note("u2"))
+    assert repo.get_note(n.id).body.startswith("駅")
+    assert repo.count_notes_by_author("u1") == 1
+    assert [x.id for x in repo.list_notes_by_author("u1")] == [n.id]
+    updated = repo.update_note(n.model_copy(update={"body": "書き直した", "updatedAt": datetime.now(UTC)}))
+    assert updated.body == "書き直した"
+    t = repo.create_tanka("u1")
+    repo.link_tanka_to_note(t.id, n.id)
+    assert repo.get_tanka(t.id).sourceNoteId == n.id and repo.get_note(n.id).tankaIds == [t.id]
+    repo.remove_tanka_from_note(n.id, t.id)
+    assert repo.get_note(n.id).tankaIds == []
+    repo.link_tanka_to_note(t.id, n.id)
+    # 気づきを消すと、短歌は残り sourceNoteId だけ外れる
+    repo.delete_note(n.id)
+    assert repo.get_tanka(t.id).sourceNoteId is None
+    with pytest.raises(NotFound):
+        repo.get_note(n.id)
+    repo.delete_note(n.id)  # 何度呼んでもよい
+    repo.remove_tanka_from_note(n.id, t.id)  # 気づきがなくても何もしない
+    with pytest.raises(NotFound):
+        repo.update_note(n)
+
+
+def test_note_link_refused_for_missing_or_deleted(repo):
+    n = repo.create_note(_note())
+    t = repo.create_tanka("u1")
+    with pytest.raises(NotFound):
+        repo.link_tanka_to_note(t.id, "nope")
+    repo.mark_deleted(t.id, datetime.now(UTC))
+    with pytest.raises(NotFound):
+        repo.link_tanka_to_note(t.id, n.id)
+
+
 # --- 連作と発表 ---
 def _seq(author: str, items: list[tuple[str, str]], title: str = "駅の灯"):
     from app.models import Sequence, SequenceItem
